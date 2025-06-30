@@ -44,6 +44,7 @@ class MainWindow(QMainWindow):
         self.labeling_mode = False
         self.annotations = []  # Stores (start_time, end_time, category)
         self.base_spectrogram = None
+        self.spectrogram_bounds = None
         self.temp_start_time = None
 
         self.init_ui()
@@ -169,7 +170,10 @@ class MainWindow(QMainWindow):
             self.playback_position = 0
             self.position_slider.setRange(0, len(self.current_audio_data) - 1)
             self.position_slider.setValue(0)
-            self.base_spectrogram = generate_spectrogram_pixmap(
+            (
+                self.base_spectrogram,
+                self.spectrogram_bounds,
+            ) = generate_spectrogram_pixmap(
                 self.current_audio_data, self.current_samplerate
             )
             self.update_spectrogram()
@@ -196,7 +200,10 @@ class MainWindow(QMainWindow):
             return
 
         if self.base_spectrogram is None:
-            self.base_spectrogram = generate_spectrogram_pixmap(
+            (
+                self.base_spectrogram,
+                self.spectrogram_bounds,
+            ) = generate_spectrogram_pixmap(
                 self.current_audio_data, self.current_samplerate
             )
 
@@ -204,7 +211,10 @@ class MainWindow(QMainWindow):
             self.base_spectrogram, self.annotations, len(self.current_audio_data), self.current_samplerate
         )
         pixmap = draw_playback_line(
-            pixmap, self.playback_position, len(self.current_audio_data)
+            pixmap,
+            self.playback_position,
+            len(self.current_audio_data),
+            self.spectrogram_bounds,
         )
         self.spectrogram_label.setPixmap(pixmap)
 
@@ -286,7 +296,10 @@ class MainWindow(QMainWindow):
             return
 
         if self.base_spectrogram is None:
-            self.base_spectrogram = generate_spectrogram_pixmap(
+            (
+                self.base_spectrogram,
+                self.spectrogram_bounds,
+            ) = generate_spectrogram_pixmap(
                 self.current_audio_data, self.current_samplerate
             )
 
@@ -294,7 +307,10 @@ class MainWindow(QMainWindow):
             self.base_spectrogram, self.annotations, len(self.current_audio_data), self.current_samplerate
         )
         pixmap = draw_playback_line(
-            pixmap, self.playback_position, len(self.current_audio_data)
+            pixmap,
+            self.playback_position,
+            len(self.current_audio_data),
+            self.spectrogram_bounds,
         )
         self.spectrogram_label.setPixmap(pixmap)
 
@@ -409,7 +425,13 @@ class MainWindow(QMainWindow):
         if self.current_audio_data is None or self.spectrogram_label.pixmap() is None:
             return 0
 
-        spectrogram_width = self.spectrogram_label.pixmap().width()
+        if self.spectrogram_bounds is not None:
+            left, _, width, _ = self.spectrogram_bounds
+            x_coordinate = max(0, x_coordinate - left)
+            spectrogram_width = width
+        else:
+            spectrogram_width = self.spectrogram_label.pixmap().width()
+
         audio_duration = len(self.current_audio_data) / self.current_samplerate
 
         if spectrogram_width == 0:
