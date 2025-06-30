@@ -15,5 +15,7 @@ CONFIG = {
         "mark_start": "S",
         "mark_end": "E",
         "next_audio": "N",
+        "clear_labels": "C",
+        "save_labels": "Ctrl+S",
     },
 }

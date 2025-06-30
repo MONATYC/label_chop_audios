@@ -32,3 +32,15 @@ def log_labeled_audio(audio_path, labeled_audios_dict):
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
     with open(log_path, "w") as f:
         json.dump(labeled_audios_dict, f, indent=4)
+
+
+def remove_labeled_audio(audio_path, labeled_audios_dict):
+    """Remove an entry from the labeled audios log."""
+    if audio_path in labeled_audios_dict:
+        del labeled_audios_dict[audio_path]
+        log_path = CONFIG["LOG_FILE"]
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        with open(log_path, "w") as f:
+            json.dump(labeled_audios_dict, f, indent=4)
+        return True
+    return False

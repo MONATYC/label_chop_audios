@@ -11,6 +11,9 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QApplication,
     QMessageBox,
+    QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
 from PyQt6.QtGui import QPixmap, QImage, QIcon, QShortcut, QKeySequence
@@ -26,7 +29,11 @@ from audio_processor.spectrogram_generator import (
     draw_annotations,
 )
 from utils.file_manager import get_audio_files_in_folder, create_directory_if_not_exists
-from utils.logger import load_labeled_audios_log, log_labeled_audio
+from utils.logger import (
+    load_labeled_audios_log,
+    log_labeled_audio,
+    remove_labeled_audio,
+)
 import json
 
 
@@ -53,11 +60,31 @@ class MainWindow(QMainWindow):
 
         self.init_ui()
         self.labeled_audios = load_labeled_audios_log()
+        self.refresh_memory_table()
 
     def init_ui(self):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
-        self.main_layout = QVBoxLayout(self.central_widget)
+
+        self.global_layout = QVBoxLayout(self.central_widget)
+
+        self.tabs = QTabWidget()
+        self.global_layout.addWidget(self.tabs)
+
+        self.labeling_tab = QWidget()
+        self.memory_tab = QWidget()
+        self.tabs.addTab(self.labeling_tab, "Labeling")
+        self.tabs.addTab(self.memory_tab, "Memory Manager")
+
+        self.main_layout = QVBoxLayout(self.labeling_tab)
+        self.mem_layout = QVBoxLayout(self.memory_tab)
+
+        # Memory manager table
+        self.memory_table = QTableWidget()
+        self.memory_table.setColumnCount(2)
+        self.memory_table.setHorizontalHeaderLabels(["File", ""])
+        self.memory_table.horizontalHeader().setStretchLastSection(True)
+        self.mem_layout.addWidget(self.memory_table)
 
 
         # Folder selection
@@ -140,9 +167,17 @@ class MainWindow(QMainWindow):
         self.mark_end_button.clicked.connect(self.mark_end)
         self.labeling_layout.addWidget(self.mark_end_button)
 
-        self.save_labels_button = QPushButton("Save Labels & Cut")
+        self.save_labels_button = QPushButton(
+            f"Save Labels & Cut ({self.shortcuts.get('save_labels', '')})"
+        )
         self.save_labels_button.clicked.connect(self.save_labels_and_cut)
         self.labeling_layout.addWidget(self.save_labels_button)
+
+        self.clear_labels_button = QPushButton(
+            f"Clear Labels ({self.shortcuts.get('clear_labels', '')})"
+        )
+        self.clear_labels_button.clicked.connect(self.clear_labels)
+        self.labeling_layout.addWidget(self.clear_labels_button)
         self.main_layout.addLayout(self.labeling_layout)
 
         # Navigation buttons
@@ -176,6 +211,10 @@ class MainWindow(QMainWindow):
             QShortcut(QKeySequence(sc), self, activated=self.mark_end)
         if sc := self.shortcuts.get("next_audio"):
             QShortcut(QKeySequence(sc), self, activated=self.load_next_audio)
+        if sc := self.shortcuts.get("clear_labels"):
+            QShortcut(QKeySequence(sc), self, activated=self.clear_labels)
+        if sc := self.shortcuts.get("save_labels"):
+            QShortcut(QKeySequence(sc), self, activated=self.save_labels_and_cut)
 
     def select_audio_folder(self):
         folder_path = QFileDialog.getExistingDirectory(self, "Select Audio Folder")
@@ -455,11 +494,18 @@ class MainWindow(QMainWindow):
         log_labeled_audio(
             self.audio_files[self.current_audio_index], self.labeled_audios
         )
+        self.refresh_memory_table()
         self.annotations = []  # Clear annotations after saving
         self.status_label.setText(
             f"Audio '{current_audio_filename}' labeled and cuts saved."
         )
         self.show_popup("Cuts saved successfully")
+
+    def clear_labels(self):
+        self.annotations = []
+        self.temp_start_time = None
+        self.update_spectrogram()
+        self.status_label.setText("Annotations cleared.")
 
     def check_if_labeled(self, audio_path):
         if audio_path in self.labeled_audios:
@@ -523,6 +569,25 @@ class MainWindow(QMainWindow):
         msg.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, True)
         QTimer.singleShot(2000, msg.close)
         msg.show()
+
+    def refresh_memory_table(self):
+        self.memory_table.setRowCount(0)
+        for row, path in enumerate(sorted(self.labeled_audios.keys())):
+            self.memory_table.insertRow(row)
+            item = QTableWidgetItem(os.path.basename(path))
+            item.setToolTip(path)
+            self.memory_table.setItem(row, 0, item)
+            btn = QPushButton("Delete")
+            btn.clicked.connect(lambda _, p=path: self.delete_memory_entry(p))
+            self.memory_table.setCellWidget(row, 1, btn)
+
+    def delete_memory_entry(self, path):
+        if path in self.labeled_audios:
+            if remove_labeled_audio(path, self.labeled_audios):
+                self.status_label.setText(
+                    f"Memory entry removed for {os.path.basename(path)}"
+                )
+                self.refresh_memory_table()
 
     def closeEvent(self, event):
         if self.playback_stream:
