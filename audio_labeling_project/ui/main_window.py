@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QLabel,
     QHBoxLayout,
+    QComboBox,
     QSlider,
     QProgressBar,
     QApplication,
@@ -102,6 +103,10 @@ class MainWindow(QMainWindow):
         self.label_mode_button = QPushButton("Label Mode")
         self.label_mode_button.clicked.connect(self.toggle_labeling_mode)
         self.labeling_layout.addWidget(self.label_mode_button)
+
+        self.category_selector = QComboBox()
+        self.category_selector.addItems(CONFIG["CATEGORIES"])
+        self.labeling_layout.addWidget(self.category_selector)
 
         self.mark_start_button = QPushButton("Mark Start")
         self.mark_start_button.clicked.connect(self.mark_start)
@@ -215,7 +220,11 @@ class MainWindow(QMainWindow):
             )
 
         pixmap = draw_annotations(
-            self.base_spectrogram, self.annotations, len(self.current_audio_data), self.current_samplerate
+            self.base_spectrogram,
+            self.annotations,
+            len(self.current_audio_data),
+            self.current_samplerate,
+            self.spectrogram_bounds,
         )
         pixmap = draw_playback_line(
             pixmap,
@@ -262,6 +271,8 @@ class MainWindow(QMainWindow):
 
     def stop_playback(self, reset_position: bool = False):
         if self.playback_stream:
+            # Increment the stream id so any pending finished callbacks are ignored
+            self.playback_stream_id += 1
             stream = self.playback_stream
             self.playback_stream = None
             try:
@@ -325,7 +336,11 @@ class MainWindow(QMainWindow):
             )
 
         pixmap = draw_annotations(
-            self.base_spectrogram, self.annotations, len(self.current_audio_data), self.current_samplerate
+            self.base_spectrogram,
+            self.annotations,
+            len(self.current_audio_data),
+            self.current_samplerate,
+            self.spectrogram_bounds,
         )
         pixmap = draw_playback_line(
             pixmap,
@@ -348,7 +363,8 @@ class MainWindow(QMainWindow):
         start = min(self.temp_start_time, end_time)
         end = max(self.temp_start_time, end_time)
         if end - start > 0.1:
-            self.annotations.append((start, end, "UNLABELED"))
+            category = self.category_selector.currentText()
+            self.annotations.append((start, end, category))
             self.audio_info_label.setText(
                 f"Segment {start:.2f}s to {end:.2f}s added."
             )
@@ -433,9 +449,8 @@ class MainWindow(QMainWindow):
             end = max(self.selection_start_time, self.selection_end_time)
 
             if end - start > 0.1:  # Ensure a minimum selection duration
-                self.annotations.append(
-                    (start, end, "UNLABELED")
-                )  # Add a default category
+                category = self.category_selector.currentText()
+                self.annotations.append((start, end, category))
                 self.audio_info_label.setText(f"Selected: {start:.2f}s to {end:.2f}s")
                 self.update_spectrogram()  # Redraw with selection
 
