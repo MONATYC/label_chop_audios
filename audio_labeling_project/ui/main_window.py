@@ -86,7 +86,6 @@ class MainWindow(QMainWindow):
         self.memory_table.horizontalHeader().setStretchLastSection(True)
         self.mem_layout.addWidget(self.memory_table)
 
-
         # Folder selection
         self.folder_select_button = QPushButton("Select Audio Folder")
         self.folder_select_button.clicked.connect(self.select_audio_folder)
@@ -96,8 +95,14 @@ class MainWindow(QMainWindow):
         self.status_layout = QHBoxLayout()
         self.status_icon = QLabel()
         audio_pix = QPixmap(os.path.join(self.icons_path, "audio.svg"))
-        self.status_icon.setPixmap(audio_pix.scaled(20, 20, Qt.AspectRatioMode.KeepAspectRatio,
-                                                   Qt.TransformationMode.SmoothTransformation))
+        self.status_icon.setPixmap(
+            audio_pix.scaled(
+                20,
+                20,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+        )
         self.status_label = QLabel("No audio loaded.")
         self.status_layout.addWidget(self.status_icon)
         self.status_layout.addWidget(self.status_label)
@@ -334,7 +339,9 @@ class MainWindow(QMainWindow):
         self.play_pause_button.setText(
             f"Pause ({self.shortcuts.get('play_pause', '')})"
         )
-        self.play_pause_button.setIcon(QIcon(os.path.join(self.icons_path, "pause.svg")))
+        self.play_pause_button.setIcon(
+            QIcon(os.path.join(self.icons_path, "pause.svg"))
+        )
         self.is_playing = True
 
         # Ensure playback starts from current position
@@ -370,9 +377,7 @@ class MainWindow(QMainWindow):
                 stream.close()
             except Exception:
                 pass
-        self.play_pause_button.setText(
-            f"Play ({self.shortcuts.get('play_pause', '')})"
-        )
+        self.play_pause_button.setText(f"Play ({self.shortcuts.get('play_pause', '')})")
         self.play_pause_button.setIcon(QIcon(os.path.join(self.icons_path, "play.svg")))
         self.is_playing = False
         if reset_position:
@@ -455,9 +460,7 @@ class MainWindow(QMainWindow):
         if end - start > 0.1:
             category = self.category_selector.currentText()
             self.annotations.append((start, end, category))
-            self.status_label.setText(
-                f"Segment {start:.2f}s to {end:.2f}s added."
-            )
+            self.status_label.setText(f"Segment {start:.2f}s to {end:.2f}s added.")
             self.update_spectrogram()
         self.temp_start_time = None
 
@@ -565,10 +568,10 @@ class MainWindow(QMainWindow):
         msg = QMessageBox(self)
         msg.setWindowTitle("Info")
         msg.setText(message)
-        msg.setStandardButtons(QMessageBox.StandardButton.NoButton)
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, True)
-        QTimer.singleShot(2000, msg.close)
-        msg.show()
+        QTimer.singleShot(2000, msg.accept)  # Cierra el popup tras 2 segundos
+        msg.exec()  # Modal, permite cerrar con la X
 
     def refresh_memory_table(self):
         self.memory_table.setRowCount(0)
