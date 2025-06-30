@@ -7,9 +7,16 @@ from PyQt6.QtCore import Qt
 
 
 def generate_spectrogram_pixmap(audio_data, samplerate):
-    """Generate a spectrogram QPixmap for the provided audio."""
+    """Generate a spectrogram QPixmap for the provided audio.
+
+    Returns
+    -------
+    tuple
+        QPixmap of the spectrogram and a tuple describing the bounding box
+        of the actual plotting area in pixel coordinates `(left, top, width, height)`.
+    """
     if audio_data is None or len(audio_data) == 0:
-        return QPixmap()  # Return empty pixmap
+        return QPixmap(), None  # Return empty pixmap
 
     fig, ax = plt.subplots(figsize=(8, 4), dpi=100)
     librosa.display.specshow(
@@ -27,16 +34,38 @@ def generate_spectrogram_pixmap(audio_data, samplerate):
 
     fig.canvas.draw()
     buf = fig.canvas.buffer_rgba()
+    renderer = fig.canvas.get_renderer()
+    bbox = ax.get_window_extent(renderer=renderer)
+    fig_width, fig_height = fig.canvas.get_width_height()
+    left = int(bbox.x0)
+    right = int(bbox.x1)
+    # Convert from matplotlib's origin (bottom left) to pixmap origin (top left)
+    top = int(fig_height - bbox.y1)
+    bottom = int(fig_height - bbox.y0)
+    bounds = (left, top, right - left, bottom - top)
     qimage = QImage(
         buf.tobytes(), buf.shape[1], buf.shape[0], QImage.Format.Format_RGBA8888
     )
     pixmap = QPixmap.fromImage(qimage)
     plt.close(fig)
-    return pixmap
+    return pixmap, bounds
 
 
-def draw_playback_line(pixmap, playback_position, total_frames):
-    """Return a copy of *pixmap* with a red playback line drawn on it."""
+def draw_playback_line(pixmap, playback_position, total_frames, bounds=None):
+    """Return a copy of *pixmap* with a red playback line drawn on it.
+
+    Parameters
+    ----------
+    pixmap : QPixmap
+        Image to draw over.
+    playback_position : int
+        Current frame index in the audio.
+    total_frames : int
+        Total number of frames of the audio.
+    bounds : tuple, optional
+        Bounding box of the spectrogram area as `(left, top, width, height)`.
+        If provided, the line will be drawn only within this rectangle.
+    """
     if pixmap.isNull() or total_frames == 0:
         return pixmap
 
@@ -46,8 +75,15 @@ def draw_playback_line(pixmap, playback_position, total_frames):
     pen = QPen(Qt.GlobalColor.red)
     pen.setWidth(2)
     painter.setPen(pen)
-    x = int((playback_position / total_frames) * pixmap.width())
-    painter.drawLine(x, 0, x, pixmap.height())
+
+    if bounds is not None:
+        left, top, width, height = bounds
+        x = int(left + (playback_position / total_frames) * width)
+        painter.drawLine(x, top, x, top + height)
+    else:
+        x = int((playback_position / total_frames) * pixmap.width())
+        painter.drawLine(x, 0, x, pixmap.height())
+
     painter.end()
     return pixmap_with_line
 
