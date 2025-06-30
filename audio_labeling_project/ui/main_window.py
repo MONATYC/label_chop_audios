@@ -520,7 +520,8 @@ class MainWindow(QMainWindow):
         msg.setWindowTitle("Info")
         msg.setText(message)
         msg.setStandardButtons(QMessageBox.StandardButton.NoButton)
-        QTimer.singleShot(1500, msg.close)
+        msg.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, True)
+        QTimer.singleShot(2000, msg.close)
         msg.show()
 
     def closeEvent(self, event):
