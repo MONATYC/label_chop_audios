@@ -53,11 +53,6 @@ python audio_labeling_project/main.py
 - Modo de etiquetado: permite seleccionar segmentos en el espectrograma y asignarles una categoría.
 - Guardado de los segmentos etiquetados como archivos individuales en la carpeta `labeled_cuts/`, organizados por categoría.
 - Registro automático de los audios ya etiquetados para evitar reprocesarlos.
-- Visualización de metadatos del archivo cargado (frecuencia de muestreo,
-  duración y tamaño).
-- Confirmación visual breve tras guardar los cortes.
-- Atajos de teclado configurables para reproducir/pausar, marcar inicio,
-  marcar fin y avanzar al siguiente audio.
 
 ### Categorías disponibles
 
