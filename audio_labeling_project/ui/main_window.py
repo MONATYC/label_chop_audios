@@ -45,6 +45,7 @@ class MainWindow(QMainWindow):
         self.labeling_mode = False
         self.annotations = []  # Stores (start_time, end_time, category)
         self.base_spectrogram = None
+        self.total_duration = 0
 
         self.init_ui()
         self.labeled_audios = load_labeled_audios_log()
@@ -82,6 +83,8 @@ class MainWindow(QMainWindow):
         self.position_slider.setRange(0, 1000)
         self.position_slider.sliderMoved.connect(self.set_playback_position)
         self.playback_layout.addWidget(self.position_slider)
+        self.time_label = QLabel("0.00 / 0.00")
+        self.playback_layout.addWidget(self.time_label)
         self.main_layout.addLayout(self.playback_layout)
 
         # Labeling controls
@@ -140,6 +143,7 @@ class MainWindow(QMainWindow):
             )
             self.current_audio_index = index
             self.playback_position = 0
+            self.total_duration = len(self.current_audio_data) / self.current_samplerate
             self.position_slider.setRange(0, len(self.current_audio_data) - 1)
             self.position_slider.setValue(0)
             self.base_spectrogram = generate_spectrogram_pixmap(
@@ -147,6 +151,7 @@ class MainWindow(QMainWindow):
             )
             self.update_spectrogram()
             self.stop_playback()
+            self.time_label.setText(f"0.00 / {self.total_duration:.2f}")
             self.audio_info_label.setText(f"Loaded: {os.path.basename(audio_path)}")
             self.check_if_labeled(audio_path)
         except Exception as e:
@@ -177,6 +182,9 @@ class MainWindow(QMainWindow):
             self.base_spectrogram, self.playback_position, len(self.current_audio_data)
         )
         self.spectrogram_label.setPixmap(pixmap)
+        if self.current_samplerate:
+            current_time = self.playback_position / self.current_samplerate
+            self.time_label.setText(f"{current_time:.2f} / {self.total_duration:.2f}")
 
     def toggle_playback(self):
         if self.current_audio_data is None:
@@ -193,6 +201,9 @@ class MainWindow(QMainWindow):
 
         self.play_pause_button.setText("Pause")
         self.is_playing = True
+        if self.current_samplerate:
+            current_time = self.playback_position / self.current_samplerate
+            self.time_label.setText(f"{current_time:.2f} / {self.total_duration:.2f}")
 
         # Ensure playback starts from current position
         start_frame = self.playback_position
@@ -218,6 +229,9 @@ class MainWindow(QMainWindow):
             self.playback_stream = None
         self.play_pause_button.setText("Play")
         self.is_playing = False
+        if self.current_samplerate:
+            current_time = self.playback_position / self.current_samplerate
+            self.time_label.setText(f"{current_time:.2f} / {self.total_duration:.2f}")
 
     def audio_callback(self, outdata, frames, time, status):
         if status:
@@ -243,6 +257,8 @@ class MainWindow(QMainWindow):
         self.playback_position = 0
         self.position_slider.setValue(0)
         self.update_playback_line()  # Ensure line resets
+        if self.current_samplerate:
+            self.time_label.setText(f"0.00 / {self.total_duration:.2f}")
 
     def set_playback_position(self, value):
         self.playback_position = value
@@ -250,6 +266,9 @@ class MainWindow(QMainWindow):
             self.stop_playback()
             self.start_playback()
         self.update_playback_line()
+        if self.current_samplerate:
+            current_time = self.playback_position / self.current_samplerate
+            self.time_label.setText(f"{current_time:.2f} / {self.total_duration:.2f}")
 
     def update_playback_line(self):
         if self.current_audio_data is None:
