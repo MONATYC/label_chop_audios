@@ -43,7 +43,6 @@ class MainWindow(QMainWindow):
         self.playback_stream_id = 0
         self.playback_position = 0
         self.is_playing = False
-        self.labeling_mode = False
         self.annotations = []  # Stores (start_time, end_time, category)
         self.base_spectrogram = None
         self.spectrogram_bounds = None
@@ -117,9 +116,6 @@ class MainWindow(QMainWindow):
 
         # Labeling controls
         self.labeling_layout = QHBoxLayout()
-        self.label_mode_button = QPushButton("Label Mode")
-        self.label_mode_button.clicked.connect(self.toggle_labeling_mode)
-        self.labeling_layout.addWidget(self.label_mode_button)
 
         self.category_selector = QComboBox()
         self.category_selector.addItems(CONFIG["CATEGORIES"])
@@ -394,19 +390,6 @@ class MainWindow(QMainWindow):
             self.update_spectrogram()
         self.temp_start_time = None
 
-    def toggle_labeling_mode(self):
-        self.labeling_mode = not self.labeling_mode
-        if self.labeling_mode:
-            self.label_mode_button.setText("Exit Label Mode")
-            self.status_label.setText(
-                "Labeling Mode: Click and drag on spectrogram to select regions."
-            )
-            # Implement selection logic (e.g., mouse press/release events on spectrogram_label)
-            # For now, this is a placeholder.
-        else:
-            self.label_mode_button.setText("Label Mode")
-            self.status_label.setText("Playback Mode.")
-
     def save_labels_and_cut(self):
         if not self.annotations:
             self.status_label.setText("No annotations to save.")
@@ -454,14 +437,14 @@ class MainWindow(QMainWindow):
             self.status_label.setText(f"Loaded: {os.path.basename(audio_path)}")
 
     def spectrogram_mouse_press(self, event):
-        if event.button() == Qt.MouseButton.LeftButton and self.labeling_mode:
+        if event.button() == Qt.MouseButton.LeftButton:
             # Placeholder for handling mouse press to start selection
             print(f"Mouse pressed at: {event.position().x()}, {event.position().y()}")
             self.selection_start_x = event.position().x()
             self.selection_start_time = self.x_to_time(event.position().x())
 
     def spectrogram_mouse_release(self, event):
-        if event.button() == Qt.MouseButton.LeftButton and self.labeling_mode:
+        if event.button() == Qt.MouseButton.LeftButton:
             # Placeholder for handling mouse release to end selection
             print(f"Mouse released at: {event.position().x()}, {event.position().y()}")
             self.selection_end_x = event.position().x()
