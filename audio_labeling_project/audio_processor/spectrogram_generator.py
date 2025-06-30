@@ -50,3 +50,25 @@ def draw_playback_line(pixmap, playback_position, total_frames):
     painter.drawLine(x, 0, x, pixmap.height())
     painter.end()
     return pixmap_with_line
+
+
+def draw_annotations(pixmap, annotations, total_frames, samplerate):
+    """Draw stored annotation regions onto *pixmap*."""
+    if pixmap.isNull() or not annotations:
+        return pixmap
+
+    annotated = QPixmap(pixmap)
+    painter = QPainter(annotated)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    pen = QPen(Qt.GlobalColor.green)
+    pen.setWidth(2)
+    painter.setPen(pen)
+
+    for start, end, _ in annotations:
+        start_x = int((start * samplerate / total_frames) * pixmap.width())
+        end_x = int((end * samplerate / total_frames) * pixmap.width())
+        painter.drawLine(start_x, 0, start_x, pixmap.height())
+        painter.drawLine(end_x, 0, end_x, pixmap.height())
+
+    painter.end()
+    return annotated

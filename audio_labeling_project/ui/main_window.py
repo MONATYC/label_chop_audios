@@ -7,6 +7,8 @@ from PyQt6.QtWidgets import (
     QLabel,
     QHBoxLayout,
     QSlider,
+    QProgressBar,
+    QApplication,
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QPixmap, QImage
@@ -14,15 +16,12 @@ import os
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
-import librosa
-import librosa.display
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from config import CONFIG
 from audio_processor.cutter import cut_audio_segment
 from audio_processor.spectrogram_generator import (
     generate_spectrogram_pixmap,
     draw_playback_line,
+    draw_annotations,
 )
 from utils.file_manager import get_audio_files_in_folder, create_directory_if_not_exists
 from utils.logger import load_labeled_audios_log, log_labeled_audio
@@ -45,6 +44,7 @@ class MainWindow(QMainWindow):
         self.labeling_mode = False
         self.annotations = []  # Stores (start_time, end_time, category)
         self.base_spectrogram = None
+        self.temp_start_time = None
 
         self.init_ui()
         self.labeled_audios = load_labeled_audios_log()
@@ -61,6 +61,11 @@ class MainWindow(QMainWindow):
 
         self.audio_info_label = QLabel("No audio loaded.")
         self.main_layout.addWidget(self.audio_info_label)
+
+        self.load_progress = QProgressBar()
+        self.load_progress.setRange(0, 100)
+        self.load_progress.hide()
+        self.main_layout.addWidget(self.load_progress)
 
         # Spectrogram display
         self.spectrogram_label = QLabel("Spectrogram will appear here.")
@@ -89,6 +94,14 @@ class MainWindow(QMainWindow):
         self.label_mode_button = QPushButton("Label Mode")
         self.label_mode_button.clicked.connect(self.toggle_labeling_mode)
         self.labeling_layout.addWidget(self.label_mode_button)
+
+        self.mark_start_button = QPushButton("Mark Start")
+        self.mark_start_button.clicked.connect(self.mark_start)
+        self.labeling_layout.addWidget(self.mark_start_button)
+
+        self.mark_end_button = QPushButton("Mark End")
+        self.mark_end_button.clicked.connect(self.mark_end)
+        self.labeling_layout.addWidget(self.mark_end_button)
 
         self.save_labels_button = QPushButton("Save Labels & Cut")
         self.save_labels_button.clicked.connect(self.save_labels_and_cut)
@@ -135,9 +148,23 @@ class MainWindow(QMainWindow):
         self.audio_info_label.setText(f"Loading: {os.path.basename(audio_path)}")
 
         try:
-            self.current_audio_data, self.current_samplerate = librosa.load(
-                audio_path, sr=None
-            )
+            with sf.SoundFile(audio_path) as f:
+                self.current_samplerate = f.samplerate
+                frames = f.frames
+                self.current_audio_data = np.empty(frames, dtype="float32")
+                block = 65536
+                read = 0
+                self.load_progress.show()
+                while read < frames:
+                    chunk = f.read(min(block, frames - read), dtype="float32")
+                    if chunk.ndim > 1:
+                        chunk = chunk[:, 0]
+                    length = len(chunk)
+                    self.current_audio_data[read : read + length] = chunk
+                    read += length
+                    self.load_progress.setValue(int((read / frames) * 100))
+                    QApplication.processEvents()
+                self.load_progress.hide()
             self.current_audio_index = index
             self.playback_position = 0
             self.position_slider.setRange(0, len(self.current_audio_data) - 1)
@@ -173,8 +200,11 @@ class MainWindow(QMainWindow):
                 self.current_audio_data, self.current_samplerate
             )
 
+        pixmap = draw_annotations(
+            self.base_spectrogram, self.annotations, len(self.current_audio_data), self.current_samplerate
+        )
         pixmap = draw_playback_line(
-            self.base_spectrogram, self.playback_position, len(self.current_audio_data)
+            pixmap, self.playback_position, len(self.current_audio_data)
         )
         self.spectrogram_label.setPixmap(pixmap)
 
@@ -260,10 +290,33 @@ class MainWindow(QMainWindow):
                 self.current_audio_data, self.current_samplerate
             )
 
+        pixmap = draw_annotations(
+            self.base_spectrogram, self.annotations, len(self.current_audio_data), self.current_samplerate
+        )
         pixmap = draw_playback_line(
-            self.base_spectrogram, self.playback_position, len(self.current_audio_data)
+            pixmap, self.playback_position, len(self.current_audio_data)
         )
         self.spectrogram_label.setPixmap(pixmap)
+
+    def mark_start(self):
+        if self.current_audio_data is None:
+            return
+        self.temp_start_time = self.playback_position / self.current_samplerate
+        self.audio_info_label.setText(f"Start marked at {self.temp_start_time:.2f}s")
+
+    def mark_end(self):
+        if self.current_audio_data is None or self.temp_start_time is None:
+            return
+        end_time = self.playback_position / self.current_samplerate
+        start = min(self.temp_start_time, end_time)
+        end = max(self.temp_start_time, end_time)
+        if end - start > 0.1:
+            self.annotations.append((start, end, "UNLABELED"))
+            self.audio_info_label.setText(
+                f"Segment {start:.2f}s to {end:.2f}s added."
+            )
+            self.update_spectrogram()
+        self.temp_start_time = None
 
     def toggle_labeling_mode(self):
         self.labeling_mode = not self.labeling_mode
