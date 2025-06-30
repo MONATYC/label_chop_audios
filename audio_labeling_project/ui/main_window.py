@@ -85,6 +85,12 @@ class MainWindow(QMainWindow):
         self.play_pause_button.clicked.connect(self.toggle_playback)
         self.playback_layout.addWidget(self.play_pause_button)
 
+        self.stop_button = QPushButton("Stop")
+        self.stop_button.clicked.connect(
+            lambda: self.stop_playback(reset_position=True)
+        )
+        self.playback_layout.addWidget(self.stop_button)
+
         self.position_slider = QSlider(Qt.Orientation.Horizontal)
         self.position_slider.setRange(0, 1000)
         self.position_slider.sliderMoved.connect(self.set_playback_position)
