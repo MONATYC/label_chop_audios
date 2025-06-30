@@ -20,7 +20,10 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from config import CONFIG
 from audio_processor.cutter import cut_audio_segment
-from audio_processor.spectrogram_generator import generate_spectrogram_pixmap
+from audio_processor.spectrogram_generator import (
+    generate_spectrogram_pixmap,
+    draw_playback_line,
+)
 from utils.file_manager import get_audio_files_in_folder, create_directory_if_not_exists
 from utils.logger import load_labeled_audios_log, log_labeled_audio
 import json
@@ -41,6 +44,7 @@ class MainWindow(QMainWindow):
         self.is_playing = False
         self.labeling_mode = False
         self.annotations = []  # Stores (start_time, end_time, category)
+        self.base_spectrogram = None
 
         self.init_ui()
         self.labeled_audios = load_labeled_audios_log()
@@ -138,6 +142,9 @@ class MainWindow(QMainWindow):
             self.playback_position = 0
             self.position_slider.setRange(0, len(self.current_audio_data) - 1)
             self.position_slider.setValue(0)
+            self.base_spectrogram = generate_spectrogram_pixmap(
+                self.current_audio_data, self.current_samplerate
+            )
             self.update_spectrogram()
             self.stop_playback()
             self.audio_info_label.setText(f"Loaded: {os.path.basename(audio_path)}")
@@ -148,6 +155,7 @@ class MainWindow(QMainWindow):
             )
             self.current_audio_data = None
             self.current_samplerate = None
+            self.base_spectrogram = None
 
     def load_next_audio(self):
         self.load_audio(self.current_audio_index + 1)
@@ -160,8 +168,13 @@ class MainWindow(QMainWindow):
             self.spectrogram_label.setText("No audio data to display spectrogram.")
             return
 
-        pixmap = generate_spectrogram_pixmap(
-            self.current_audio_data, self.current_samplerate, self.playback_position
+        if self.base_spectrogram is None:
+            self.base_spectrogram = generate_spectrogram_pixmap(
+                self.current_audio_data, self.current_samplerate
+            )
+
+        pixmap = draw_playback_line(
+            self.base_spectrogram, self.playback_position, len(self.current_audio_data)
         )
         self.spectrogram_label.setPixmap(pixmap)
 
@@ -242,8 +255,13 @@ class MainWindow(QMainWindow):
         if self.current_audio_data is None:
             return
 
-        pixmap = generate_spectrogram_pixmap(
-            self.current_audio_data, self.current_samplerate, self.playback_position
+        if self.base_spectrogram is None:
+            self.base_spectrogram = generate_spectrogram_pixmap(
+                self.current_audio_data, self.current_samplerate
+            )
+
+        pixmap = draw_playback_line(
+            self.base_spectrogram, self.playback_position, len(self.current_audio_data)
         )
         self.spectrogram_label.setPixmap(pixmap)
 
