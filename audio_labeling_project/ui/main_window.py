@@ -254,7 +254,7 @@ class MainWindow(QMainWindow):
         )
         self.playback_stream.start()
 
-    def stop_playback(self):
+    def stop_playback(self, reset_position: bool = False):
         if self.playback_stream:
             stream = self.playback_stream
             self.playback_stream = None
@@ -268,6 +268,10 @@ class MainWindow(QMainWindow):
                 pass
         self.play_pause_button.setText("Play")
         self.is_playing = False
+        if reset_position:
+            self.playback_position = 0
+            self.position_slider.setValue(0)
+            self.update_playback_line()
 
     def audio_callback(self, outdata, frames, time, status):
         if status:
@@ -291,10 +295,9 @@ class MainWindow(QMainWindow):
     def playback_finished(self, finished_id):
         if finished_id != self.playback_stream_id:
             return
-        self.stop_playback()
-        self.playback_position = 0
-        self.position_slider.setValue(0)
-        self.update_playback_line()  # Ensure line resets
+        if not self.is_playing:
+            return
+        self.stop_playback(reset_position=True)
 
     def set_playback_position(self, value):
         self.playback_position = value
