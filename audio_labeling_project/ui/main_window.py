@@ -39,6 +39,7 @@ class MainWindow(QMainWindow):
         self.current_audio_data = None
         self.current_samplerate = None
         self.playback_stream = None
+        self.playback_stream_id = 0
         self.playback_position = 0
         self.is_playing = False
         self.labeling_mode = False
@@ -243,19 +244,28 @@ class MainWindow(QMainWindow):
             start_frame = 0
             remaining_frames = len(self.current_audio_data)
 
+        self.playback_stream_id += 1
+        current_id = self.playback_stream_id
         self.playback_stream = sd.OutputStream(
             samplerate=self.current_samplerate,
             channels=1,
             callback=self.audio_callback,
-            finished_callback=self.playback_finished,
+            finished_callback=lambda: self.playback_finished(current_id),
         )
         self.playback_stream.start()
 
     def stop_playback(self):
         if self.playback_stream:
-            self.playback_stream.stop()
-            self.playback_stream.close()
+            stream = self.playback_stream
             self.playback_stream = None
+            try:
+                stream.stop()
+            except Exception:
+                pass
+            try:
+                stream.close()
+            except Exception:
+                pass
         self.play_pause_button.setText("Play")
         self.is_playing = False
 
@@ -278,7 +288,9 @@ class MainWindow(QMainWindow):
         self.playback_position += frames
         self.position_slider.setValue(self.playback_position)
 
-    def playback_finished(self):
+    def playback_finished(self, finished_id):
+        if finished_id != self.playback_stream_id:
+            return
         self.stop_playback()
         self.playback_position = 0
         self.position_slider.setValue(0)
