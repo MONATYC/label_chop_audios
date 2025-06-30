@@ -10,4 +10,10 @@ CONFIG = {
         "Human_presence",
         "Drumming",
     ],
+    "SHORTCUTS": {
+        "play_pause": "Space",
+        "mark_start": "S",
+        "mark_end": "E",
+        "next_audio": "N",
+    },
 }

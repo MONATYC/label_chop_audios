@@ -10,9 +10,10 @@ from PyQt6.QtWidgets import (
     QSlider,
     QProgressBar,
     QApplication,
+    QMessageBox,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
-from PyQt6.QtGui import QPixmap, QImage, QIcon
+from PyQt6.QtGui import QPixmap, QImage, QIcon, QShortcut, QKeySequence
 import os
 import numpy as np
 import sounddevice as sd
@@ -48,6 +49,7 @@ class MainWindow(QMainWindow):
         self.spectrogram_bounds = None
         self.temp_start_time = None
         self.icons_path = os.path.join(os.path.dirname(__file__), "icons")
+        self.shortcuts = CONFIG.get("SHORTCUTS", {})
 
         self.init_ui()
         self.labeled_audios = load_labeled_audios_log()
@@ -75,6 +77,9 @@ class MainWindow(QMainWindow):
         self.status_layout.addStretch()
         self.main_layout.addLayout(self.status_layout)
 
+        self.metadata_label = QLabel("")
+        self.main_layout.addWidget(self.metadata_label)
+
         self.load_progress = QProgressBar()
         self.load_progress.setRange(0, 100)
         self.load_progress.hide()
@@ -92,7 +97,9 @@ class MainWindow(QMainWindow):
 
         # Playback controls
         self.playback_layout = QHBoxLayout()
-        self.play_pause_button = QPushButton("Play")
+        self.play_pause_button = QPushButton(
+            f"Play ({self.shortcuts.get('play_pause', '')})"
+        )
         self.play_pause_button.setIcon(QIcon(os.path.join(self.icons_path, "play.svg")))
         self.play_pause_button.setIconSize(QSize(24, 24))
         self.play_pause_button.clicked.connect(self.toggle_playback)
@@ -121,11 +128,15 @@ class MainWindow(QMainWindow):
         self.category_selector.addItems(CONFIG["CATEGORIES"])
         self.labeling_layout.addWidget(self.category_selector)
 
-        self.mark_start_button = QPushButton("Mark Start")
+        self.mark_start_button = QPushButton(
+            f"Mark Start ({self.shortcuts.get('mark_start', '')})"
+        )
         self.mark_start_button.clicked.connect(self.mark_start)
         self.labeling_layout.addWidget(self.mark_start_button)
 
-        self.mark_end_button = QPushButton("Mark End")
+        self.mark_end_button = QPushButton(
+            f"Mark End ({self.shortcuts.get('mark_end', '')})"
+        )
         self.mark_end_button.clicked.connect(self.mark_end)
         self.labeling_layout.addWidget(self.mark_end_button)
 
@@ -141,7 +152,9 @@ class MainWindow(QMainWindow):
         self.prev_button.setFixedHeight(36)
         self.nav_layout.addWidget(self.prev_button)
 
-        self.next_button = QPushButton("Next Audio")
+        self.next_button = QPushButton(
+            f"Next Audio ({self.shortcuts.get('next_audio', '')})"
+        )
         self.next_button.setIcon(QIcon(os.path.join(self.icons_path, "next.svg")))
         self.next_button.setIconSize(QSize(20, 20))
         self.next_button.clicked.connect(self.load_next_audio)
@@ -153,6 +166,16 @@ class MainWindow(QMainWindow):
         self.update_timer.setInterval(50)  # Update every 50ms
         self.update_timer.timeout.connect(self.update_playback_line)
         self.update_timer.start()
+
+        # Keyboard shortcuts
+        if sc := self.shortcuts.get("play_pause"):
+            QShortcut(QKeySequence(sc), self, activated=self.toggle_playback)
+        if sc := self.shortcuts.get("mark_start"):
+            QShortcut(QKeySequence(sc), self, activated=self.mark_start)
+        if sc := self.shortcuts.get("mark_end"):
+            QShortcut(QKeySequence(sc), self, activated=self.mark_end)
+        if sc := self.shortcuts.get("next_audio"):
+            QShortcut(QKeySequence(sc), self, activated=self.load_next_audio)
 
     def select_audio_folder(self):
         folder_path = QFileDialog.getExistingDirectory(self, "Select Audio Folder")
@@ -199,6 +222,11 @@ class MainWindow(QMainWindow):
             self.playback_position = 0
             self.position_slider.setRange(0, len(self.current_audio_data) - 1)
             self.position_slider.setValue(0)
+            duration = len(self.current_audio_data) / self.current_samplerate
+            size_mb = os.path.getsize(audio_path) / (1024 * 1024)
+            self.metadata_label.setText(
+                f"{self.current_samplerate} Hz | {duration:.2f}s | {size_mb:.2f} MB"
+            )
             (
                 self.base_spectrogram,
                 self.spectrogram_bounds,
@@ -264,7 +292,9 @@ class MainWindow(QMainWindow):
         if self.current_audio_data is None:
             return
 
-        self.play_pause_button.setText("Pause")
+        self.play_pause_button.setText(
+            f"Pause ({self.shortcuts.get('play_pause', '')})"
+        )
         self.play_pause_button.setIcon(QIcon(os.path.join(self.icons_path, "pause.svg")))
         self.is_playing = True
 
@@ -301,7 +331,9 @@ class MainWindow(QMainWindow):
                 stream.close()
             except Exception:
                 pass
-        self.play_pause_button.setText("Play")
+        self.play_pause_button.setText(
+            f"Play ({self.shortcuts.get('play_pause', '')})"
+        )
         self.play_pause_button.setIcon(QIcon(os.path.join(self.icons_path, "play.svg")))
         self.is_playing = False
         if reset_position:
@@ -427,6 +459,7 @@ class MainWindow(QMainWindow):
         self.status_label.setText(
             f"Audio '{current_audio_filename}' labeled and cuts saved."
         )
+        self.show_popup("Cuts saved successfully")
 
     def check_if_labeled(self, audio_path):
         if audio_path in self.labeled_audios:
@@ -481,6 +514,14 @@ class MainWindow(QMainWindow):
 
         time_per_pixel = audio_duration / spectrogram_width
         return x_coordinate * time_per_pixel
+
+    def show_popup(self, message):
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Info")
+        msg.setText(message)
+        msg.setStandardButtons(QMessageBox.StandardButton.NoButton)
+        QTimer.singleShot(1500, msg.close)
+        msg.show()
 
     def closeEvent(self, event):
         if self.playback_stream:
