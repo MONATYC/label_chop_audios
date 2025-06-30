@@ -11,8 +11,8 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QApplication,
 )
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtCore import Qt, QTimer, QSize
+from PyQt6.QtGui import QPixmap, QImage, QIcon
 import os
 import numpy as np
 import sounddevice as sd
@@ -48,6 +48,7 @@ class MainWindow(QMainWindow):
         self.base_spectrogram = None
         self.spectrogram_bounds = None
         self.temp_start_time = None
+        self.icons_path = os.path.join(os.path.dirname(__file__), "icons")
 
         self.init_ui()
         self.labeled_audios = load_labeled_audios_log()
@@ -57,13 +58,23 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget)
 
+
         # Folder selection
         self.folder_select_button = QPushButton("Select Audio Folder")
         self.folder_select_button.clicked.connect(self.select_audio_folder)
         self.main_layout.addWidget(self.folder_select_button)
 
-        self.audio_info_label = QLabel("No audio loaded.")
-        self.main_layout.addWidget(self.audio_info_label)
+        # Top status bar showing current file
+        self.status_layout = QHBoxLayout()
+        self.status_icon = QLabel()
+        audio_pix = QPixmap(os.path.join(self.icons_path, "audio.svg"))
+        self.status_icon.setPixmap(audio_pix.scaled(20, 20, Qt.AspectRatioMode.KeepAspectRatio,
+                                                   Qt.TransformationMode.SmoothTransformation))
+        self.status_label = QLabel("No audio loaded.")
+        self.status_layout.addWidget(self.status_icon)
+        self.status_layout.addWidget(self.status_label)
+        self.status_layout.addStretch()
+        self.main_layout.addLayout(self.status_layout)
 
         self.load_progress = QProgressBar()
         self.load_progress.setRange(0, 100)
@@ -83,13 +94,19 @@ class MainWindow(QMainWindow):
         # Playback controls
         self.playback_layout = QHBoxLayout()
         self.play_pause_button = QPushButton("Play")
+        self.play_pause_button.setIcon(QIcon(os.path.join(self.icons_path, "play.svg")))
+        self.play_pause_button.setIconSize(QSize(24, 24))
         self.play_pause_button.clicked.connect(self.toggle_playback)
+        self.play_pause_button.setFixedHeight(40)
         self.playback_layout.addWidget(self.play_pause_button)
 
         self.stop_button = QPushButton("Stop")
+        self.stop_button.setIcon(QIcon(os.path.join(self.icons_path, "stop.svg")))
+        self.stop_button.setIconSize(QSize(24, 24))
         self.stop_button.clicked.connect(
             lambda: self.stop_playback(reset_position=True)
         )
+        self.stop_button.setFixedHeight(40)
         self.playback_layout.addWidget(self.stop_button)
 
         self.position_slider = QSlider(Qt.Orientation.Horizontal)
@@ -125,10 +142,14 @@ class MainWindow(QMainWindow):
         self.nav_layout = QHBoxLayout()
         self.prev_button = QPushButton("Previous Audio")
         self.prev_button.clicked.connect(self.load_previous_audio)
+        self.prev_button.setFixedHeight(36)
         self.nav_layout.addWidget(self.prev_button)
 
         self.next_button = QPushButton("Next Audio")
+        self.next_button.setIcon(QIcon(os.path.join(self.icons_path, "next.svg")))
+        self.next_button.setIconSize(QSize(20, 20))
         self.next_button.clicked.connect(self.load_next_audio)
+        self.next_button.setFixedHeight(36)
         self.nav_layout.addWidget(self.next_button)
         self.main_layout.addLayout(self.nav_layout)
 
@@ -145,7 +166,7 @@ class MainWindow(QMainWindow):
             )
 
             if not self.audio_files:
-                self.audio_info_label.setText(
+                self.status_label.setText(
                     "No supported audio files found in selected folder."
                 )
                 return
@@ -158,7 +179,7 @@ class MainWindow(QMainWindow):
             return
 
         audio_path = self.audio_files[index]
-        self.audio_info_label.setText(f"Loading: {os.path.basename(audio_path)}")
+        self.status_label.setText(f"Loading: {os.path.basename(audio_path)}")
 
         try:
             with sf.SoundFile(audio_path) as f:
@@ -190,10 +211,10 @@ class MainWindow(QMainWindow):
             )
             self.update_spectrogram()
             self.stop_playback()
-            self.audio_info_label.setText(f"Loaded: {os.path.basename(audio_path)}")
+            self.status_label.setText(f"Loaded: {os.path.basename(audio_path)}")
             self.check_if_labeled(audio_path)
         except Exception as e:
-            self.audio_info_label.setText(
+            self.status_label.setText(
                 f"Error loading {os.path.basename(audio_path)}: {e}"
             )
             self.current_audio_data = None
@@ -248,6 +269,7 @@ class MainWindow(QMainWindow):
             return
 
         self.play_pause_button.setText("Pause")
+        self.play_pause_button.setIcon(QIcon(os.path.join(self.icons_path, "pause.svg")))
         self.is_playing = True
 
         # Ensure playback starts from current position
@@ -284,6 +306,7 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
         self.play_pause_button.setText("Play")
+        self.play_pause_button.setIcon(QIcon(os.path.join(self.icons_path, "play.svg")))
         self.is_playing = False
         if reset_position:
             self.playback_position = 0
@@ -354,7 +377,7 @@ class MainWindow(QMainWindow):
         if self.current_audio_data is None:
             return
         self.temp_start_time = self.playback_position / self.current_samplerate
-        self.audio_info_label.setText(f"Start marked at {self.temp_start_time:.2f}s")
+        self.status_label.setText(f"Start marked at {self.temp_start_time:.2f}s")
 
     def mark_end(self):
         if self.current_audio_data is None or self.temp_start_time is None:
@@ -365,7 +388,7 @@ class MainWindow(QMainWindow):
         if end - start > 0.1:
             category = self.category_selector.currentText()
             self.annotations.append((start, end, category))
-            self.audio_info_label.setText(
+            self.status_label.setText(
                 f"Segment {start:.2f}s to {end:.2f}s added."
             )
             self.update_spectrogram()
@@ -375,18 +398,18 @@ class MainWindow(QMainWindow):
         self.labeling_mode = not self.labeling_mode
         if self.labeling_mode:
             self.label_mode_button.setText("Exit Label Mode")
-            self.audio_info_label.setText(
+            self.status_label.setText(
                 "Labeling Mode: Click and drag on spectrogram to select regions."
             )
             # Implement selection logic (e.g., mouse press/release events on spectrogram_label)
             # For now, this is a placeholder.
         else:
             self.label_mode_button.setText("Label Mode")
-            self.audio_info_label.setText("Playback Mode.")
+            self.status_label.setText("Playback Mode.")
 
     def save_labels_and_cut(self):
         if not self.annotations:
-            self.audio_info_label.setText("No annotations to save.")
+            self.status_label.setText("No annotations to save.")
             return
 
         current_audio_filename = os.path.basename(
@@ -412,23 +435,23 @@ class MainWindow(QMainWindow):
                 end_time,
                 output_path,
             )
-            self.audio_info_label.setText(f"Saved cut to: {output_path}")
+            self.status_label.setText(f"Saved cut to: {output_path}")
 
         log_labeled_audio(
             self.audio_files[self.current_audio_index], self.labeled_audios
         )
         self.annotations = []  # Clear annotations after saving
-        self.audio_info_label.setText(
+        self.status_label.setText(
             f"Audio '{current_audio_filename}' labeled and cuts saved."
         )
 
     def check_if_labeled(self, audio_path):
         if audio_path in self.labeled_audios:
-            self.audio_info_label.setText(
+            self.status_label.setText(
                 f"Loaded: {os.path.basename(audio_path)} (ALREADY LABELED)"
             )
         else:
-            self.audio_info_label.setText(f"Loaded: {os.path.basename(audio_path)}")
+            self.status_label.setText(f"Loaded: {os.path.basename(audio_path)}")
 
     def spectrogram_mouse_press(self, event):
         if event.button() == Qt.MouseButton.LeftButton and self.labeling_mode:
@@ -451,7 +474,7 @@ class MainWindow(QMainWindow):
             if end - start > 0.1:  # Ensure a minimum selection duration
                 category = self.category_selector.currentText()
                 self.annotations.append((start, end, category))
-                self.audio_info_label.setText(f"Selected: {start:.2f}s to {end:.2f}s")
+                self.status_label.setText(f"Selected: {start:.2f}s to {end:.2f}s")
                 self.update_spectrogram()  # Redraw with selection
 
     def x_to_time(self, x_coordinate):
