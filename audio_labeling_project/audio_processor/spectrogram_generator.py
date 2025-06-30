@@ -2,23 +2,12 @@ import librosa
 import librosa.display
 import matplotlib.pyplot as plt
 import numpy as np
-from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtGui import QPixmap, QImage, QPainter, QPen
 from PyQt6.QtCore import Qt
 
 
-def generate_spectrogram_pixmap(audio_data, samplerate, playback_position=None):
-    """
-    Generates a spectrogram from audio data and returns it as a QPixmap.
-
-    Args:
-        audio_data (np.ndarray): The audio data.
-        samplerate (int): The sample rate of the audio.
-        playback_position (int, optional): Current playback position in frames.
-                                           If provided, a vertical line will be drawn.
-
-    Returns:
-        QPixmap: The spectrogram as a QPixmap.
-    """
+def generate_spectrogram_pixmap(audio_data, samplerate):
+    """Generate a spectrogram QPixmap for the provided audio."""
     if audio_data is None or len(audio_data) == 0:
         return QPixmap()  # Return empty pixmap
 
@@ -30,10 +19,6 @@ def generate_spectrogram_pixmap(audio_data, samplerate, playback_position=None):
         y_axis="log",
         ax=ax,
     )
-
-    if playback_position is not None and samplerate > 0:
-        time_position = playback_position / samplerate
-        ax.axvline(x=time_position, color="r", linestyle="--", linewidth=2)
 
     ax.set_title("Spectrogram")
     ax.set_xlabel("Time (s)")
@@ -48,3 +33,20 @@ def generate_spectrogram_pixmap(audio_data, samplerate, playback_position=None):
     pixmap = QPixmap.fromImage(qimage)
     plt.close(fig)
     return pixmap
+
+
+def draw_playback_line(pixmap, playback_position, total_frames):
+    """Return a copy of *pixmap* with a red playback line drawn on it."""
+    if pixmap.isNull() or total_frames == 0:
+        return pixmap
+
+    pixmap_with_line = QPixmap(pixmap)
+    painter = QPainter(pixmap_with_line)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    pen = QPen(Qt.GlobalColor.red)
+    pen.setWidth(2)
+    painter.setPen(pen)
+    x = int((playback_position / total_frames) * pixmap.width())
+    painter.drawLine(x, 0, x, pixmap.height())
+    painter.end()
+    return pixmap_with_line
