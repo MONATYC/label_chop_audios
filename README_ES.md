@@ -37,6 +37,7 @@ python audio_labeling_project/main.py
 3. Navega por los audios con los botones **Next** y **Previous**.
 4. Activa **Label Mode** para marcar segmentos sobre el espectrograma. Cada selección se añadirá a la lista de anotaciones.
 5. Pulsa **Save Labels & Cut** para guardar los cortes etiquetados en `labeled_cuts/` y registrar el audio como procesado.
+6. En los controles de reproducción encontrarás los botones **Play/Pause** y **Stop**. *Play/Pause* detiene la reproducción en el punto actual para reanudarla desde allí, mientras que *Stop* vuelve al inicio del audio.
 
 ## Personalización
 

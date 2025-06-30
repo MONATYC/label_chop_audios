@@ -30,3 +30,5 @@ python audio_labeling_project/main.py
 
 When launched, you can open a folder containing `.wav` or `.mp3` files, navigate between them and mark regions on the spectrogram in **Label Mode**. Press **Save Labels & Cut** to store each labeled region as an individual audio file inside `labeled_cuts/`.
 
+The playback section includes **Play/Pause** and **Stop** buttons. *Play/Pause* halts the audio at the current position so you can resume from the same spot, while *Stop* resets the playback position to the beginning of the file.
+
