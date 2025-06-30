@@ -1,60 +1,32 @@
-# Herramienta de Etiquetado y Corte de Audios
+# Audio Labeling Tool
 
-Esta aplicación permite etiquetar segmentos de archivos de audio y guardar los cortes de manera organizada. Está pensada para flujos de trabajo de anotación de sonidos como llamadas de chimpancé u otras clasificaciones personalizadas.
+This project provides a simple GUI for labeling and cutting audio files into categorized segments. It was built with **PyQt6** and uses `librosa` and `matplotlib` to display spectrograms while playing back audio.
 
-## Características
+## Requirements
 
-- Interfaz gráfica construida con **PyQt6**.
-- Reproducción de audio con control de posición y visualización de la forma de onda mediante espectrogramas.
-- Modo de etiquetado que permite seleccionar regiones del espectrograma con el ratón.
-- Almacena las anotaciones y genera archivos recortados por categoría en la carpeta `labeled_cuts/`.
-- Registra los audios ya etiquetados para evitar procesarlos de nuevo.
+- Python 3.10+
+- [PyQt6](https://pypi.org/project/PyQt6/)
+- [librosa](https://pypi.org/project/librosa/)
+- [sounddevice](https://pypi.org/project/sounddevice/)
+- [soundfile](https://pypi.org/project/soundfile/)
+- [numpy](https://pypi.org/project/numpy/)
+- [matplotlib](https://pypi.org/project/matplotlib/)
 
-## Instalación
-
-1. Requiere Python 3.10 o superior. Se recomienda usar un entorno virtual:
+Install everything into a virtual environment:
 
 ```bash
 python -m venv venv
 source venv/bin/activate
+pip install PyQt6 librosa sounddevice soundfile numpy matplotlib
 ```
 
-2. Instalar las dependencias principales:
+## Running the application
 
-```bash
-pip install PyQt6 numpy sounddevice soundfile librosa matplotlib
-```
-
-## Uso
-
-1. Ejecuta la aplicación:
+Execute the main script from the repository root:
 
 ```bash
 python audio_labeling_project/main.py
 ```
 
-2. Selecciona la carpeta que contiene los archivos de audio (`.wav` o `.mp3`).
-3. Navega por los audios con los botones **Next** y **Previous**.
-4. Activa **Label Mode** para marcar segmentos sobre el espectrograma. Cada selección se añadirá a la lista de anotaciones.
-5. Pulsa **Save Labels & Cut** para guardar los cortes etiquetados en `labeled_cuts/` y registrar el audio como procesado.
-
-## Personalización
-
-- Las categorías de etiqueta y otros parámetros se encuentran en `audio_labeling_project/config.py`.
-- Los cortes guardados se organizan por categoría dentro de la carpeta del audio original.
-
-## Estructura del proyecto
-
-```
- audio_labeling_project/
- ├── audio_processor/       # Funciones para cortar audio y generar espectrogramas
- ├── ui/                    # Ventanas y widgets de la interfaz PyQt6
- ├── utils/                 # Utilidades de gestión de archivos y registro
- ├── config.py              # Ajustes generales (extensiones, categorías, etc.)
- └── main.py                # Punto de entrada de la aplicación
-```
-
-## Contribución
-
-Las mejoras y correcciones son bienvenidas. Abre un *issue* o envía un *pull request* describiendo tu propuesta.
+When launched, you can open a folder containing `.wav` or `.mp3` files, navigate between them and mark regions on the spectrogram in **Label Mode**. Press **Save Labels & Cut** to store each labeled region as an individual audio file inside `labeled_cuts/`.
 
