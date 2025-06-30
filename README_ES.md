@@ -39,6 +39,8 @@ python audio_labeling_project/main.py
 5. Pulsa **Save Labels & Cut** para guardar los cortes etiquetados en `labeled_cuts/` y registrar el audio como procesado.
 6. En los controles de reproducción encontrarás los botones **Play/Pause** y **Stop**. *Play/Pause* detiene la reproducción en el punto actual para reanudarla desde allí, mientras que *Stop* vuelve al inicio del audio.
 
+Al marcar segmentos puedes seleccionar la categoría deseada desde el desplegable situado junto a **Label Mode**. Cada corte se guardará en la carpeta correspondiente a esa categoría cuando uses **Save Labels & Cut**.
+
 ## Personalización
 
 - Las categorías de etiqueta y otros parámetros se encuentran en `audio_labeling_project/config.py`.

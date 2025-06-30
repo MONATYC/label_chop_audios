@@ -88,8 +88,23 @@ def draw_playback_line(pixmap, playback_position, total_frames, bounds=None):
     return pixmap_with_line
 
 
-def draw_annotations(pixmap, annotations, total_frames, samplerate):
-    """Draw stored annotation regions onto *pixmap*."""
+def draw_annotations(pixmap, annotations, total_frames, samplerate, bounds=None):
+    """Draw stored annotation regions onto *pixmap*.
+
+    Parameters
+    ----------
+    pixmap : QPixmap
+        Image to draw over.
+    annotations : list
+        List of `(start, end, category)` tuples in seconds.
+    total_frames : int
+        Total number of frames in the audio.
+    samplerate : int
+        Sample rate of the audio.
+    bounds : tuple, optional
+        Bounding box of the spectrogram area as `(left, top, width, height)`.
+        If provided, the lines will be drawn only within this rectangle.
+    """
     if pixmap.isNull() or not annotations:
         return pixmap
 
@@ -101,10 +116,17 @@ def draw_annotations(pixmap, annotations, total_frames, samplerate):
     painter.setPen(pen)
 
     for start, end, _ in annotations:
-        start_x = int((start * samplerate / total_frames) * pixmap.width())
-        end_x = int((end * samplerate / total_frames) * pixmap.width())
-        painter.drawLine(start_x, 0, start_x, pixmap.height())
-        painter.drawLine(end_x, 0, end_x, pixmap.height())
+        if bounds is not None:
+            left, top, width, height = bounds
+            start_x = int(left + (start * samplerate / total_frames) * width)
+            end_x = int(left + (end * samplerate / total_frames) * width)
+            painter.drawLine(start_x, top, start_x, top + height)
+            painter.drawLine(end_x, top, end_x, top + height)
+        else:
+            start_x = int((start * samplerate / total_frames) * pixmap.width())
+            end_x = int((end * samplerate / total_frames) * pixmap.width())
+            painter.drawLine(start_x, 0, start_x, pixmap.height())
+            painter.drawLine(end_x, 0, end_x, pixmap.height())
 
     painter.end()
     return annotated

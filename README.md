@@ -32,3 +32,5 @@ When launched, you can open a folder containing `.wav` or `.mp3` files, navigate
 
 The playback section includes **Play/Pause** and **Stop** buttons. *Play/Pause* halts the audio at the current position so you can resume from the same spot, while *Stop* resets the playback position to the beginning of the file.
 
+When labeling, choose a category for the current segment using the drop-down menu next to the **Label Mode** controls. Selected segments will be saved under that category when you press **Save Labels & Cut**.
+
