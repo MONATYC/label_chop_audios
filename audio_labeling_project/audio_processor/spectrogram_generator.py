@@ -18,7 +18,9 @@ def generate_spectrogram_pixmap(audio_data, samplerate):
     if audio_data is None or len(audio_data) == 0:
         return QPixmap(), None  # Return empty pixmap
 
-    fig, ax = plt.subplots(figsize=(8, 4), dpi=100)
+    # Use a 4:3 aspect ratio so the resulting image scales
+    # nicely between 640x480 and 1280x960 in the UI.
+    fig, ax = plt.subplots(figsize=(6.4, 4.8), dpi=100)
     librosa.display.specshow(
         librosa.amplitude_to_db(np.abs(librosa.stft(audio_data)), ref=np.max),
         sr=samplerate,

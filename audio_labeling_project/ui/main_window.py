@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QSplitter,
+    QSizePolicy,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
 from PyQt6.QtGui import QPixmap, QImage, QIcon, QShortcut, QKeySequence, QColor
@@ -61,6 +62,7 @@ class MainWindow(QMainWindow):
         self.annotations = []  # Stores (start_time, end_time, category)
         self.base_spectrogram = None
         self.spectrogram_bounds = None
+        self.current_bounds = None
         self.temp_start_time = None
         self.icons_path = os.path.join(os.path.dirname(__file__), "icons")
         self.shortcuts = CONFIG.get("SHORTCUTS", {})
@@ -187,6 +189,11 @@ class MainWindow(QMainWindow):
         # Spectrogram display and annotations table inside a splitter
         self.spectrogram_label = QLabel("Spectrogram will appear here.")
         self.spectrogram_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.spectrogram_label.setMinimumSize(640, 480)
+        self.spectrogram_label.setMaximumSize(1280, 960)
+        self.spectrogram_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         self.spectrogram_label.setMouseTracking(True)  # Enable mouse tracking
         self.spectrogram_label.mousePressEvent = self.spectrogram_mouse_press
         self.spectrogram_label.mouseReleaseEvent = self.spectrogram_mouse_release
@@ -373,6 +380,37 @@ class MainWindow(QMainWindow):
     def load_previous_audio(self):
         self.load_audio(self.current_audio_index - 1)
 
+    def get_scaled_pixmap_and_bounds(self):
+        """Return the spectrogram pixmap scaled to the label size and
+        the corresponding bounding box."""
+        if self.base_spectrogram is None:
+            return QPixmap(), None
+
+        target_width = min(max(self.spectrogram_label.width(), 640), 1280)
+        target_height = min(max(self.spectrogram_label.height(), 480), 960)
+
+        scaled = self.base_spectrogram.scaled(
+            target_width,
+            target_height,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+
+        if self.spectrogram_bounds is not None:
+            scale_x = scaled.width() / self.base_spectrogram.width()
+            scale_y = scaled.height() / self.base_spectrogram.height()
+            left, top, width, height = self.spectrogram_bounds
+            bounds = (
+                int(left * scale_x),
+                int(top * scale_y),
+                int(width * scale_x),
+                int(height * scale_y),
+            )
+        else:
+            bounds = None
+
+        return scaled, bounds
+
     def update_spectrogram(self):
         if self.current_audio_data is None:
             self.spectrogram_label.setText("No audio data to display spectrogram.")
@@ -386,18 +424,20 @@ class MainWindow(QMainWindow):
                 self.current_audio_data, self.current_samplerate
             )
 
+        pixmap, self.current_bounds = self.get_scaled_pixmap_and_bounds()
+
         pixmap = draw_annotations(
-            self.base_spectrogram,
+            pixmap,
             self.annotations,
             len(self.current_audio_data),
             self.current_samplerate,
-            self.spectrogram_bounds,
+            self.current_bounds,
         )
         pixmap = draw_playback_line(
             pixmap,
             self.playback_position,
             len(self.current_audio_data),
-            self.spectrogram_bounds,
+            self.current_bounds,
         )
         self.spectrogram_label.setPixmap(pixmap)
 
@@ -536,18 +576,20 @@ class MainWindow(QMainWindow):
                 self.current_audio_data, self.current_samplerate
             )
 
+        pixmap, self.current_bounds = self.get_scaled_pixmap_and_bounds()
+
         pixmap = draw_annotations(
-            self.base_spectrogram,
+            pixmap,
             self.annotations,
             len(self.current_audio_data),
             self.current_samplerate,
-            self.spectrogram_bounds,
+            self.current_bounds,
         )
         pixmap = draw_playback_line(
             pixmap,
             self.playback_position,
             len(self.current_audio_data),
-            self.spectrogram_bounds,
+            self.current_bounds,
         )
         self.spectrogram_label.setPixmap(pixmap)
 
@@ -658,8 +700,8 @@ class MainWindow(QMainWindow):
         if self.current_audio_data is None or self.spectrogram_label.pixmap() is None:
             return 0
 
-        if self.spectrogram_bounds is not None:
-            left, _, width, _ = self.spectrogram_bounds
+        if self.current_bounds is not None:
+            left, _, width, _ = self.current_bounds
             x_coordinate = max(0, x_coordinate - left)
             spectrogram_width = width
         else:
@@ -759,3 +801,8 @@ class MainWindow(QMainWindow):
         visible = self.right_panel_widget.isVisible()
         self.right_panel_widget.setVisible(not visible)
         self.toggle_right_panel_btn.setText("\u25c0" if visible else "\u25b6")
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        # Redraw spectrogram to fit the new size
+        self.update_playback_line()
