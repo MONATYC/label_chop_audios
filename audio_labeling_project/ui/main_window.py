@@ -86,19 +86,37 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.memory_tab, "Memory Manager")
 
         self.main_layout = QHBoxLayout(self.labeling_tab)
+
+        # Left panel toggle button
+        self.toggle_left_panel_btn = QPushButton("\u25C0")
+        self.toggle_left_panel_btn.setFixedWidth(15)
+        self.toggle_left_panel_btn.clicked.connect(self.toggle_left_panel)
+        self.main_layout.addWidget(self.toggle_left_panel_btn)
+
         self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
         self.main_layout.addWidget(self.main_splitter)
 
         self.left_panel_widget = QWidget()
         self.left_panel_layout = QVBoxLayout(self.left_panel_widget)
 
-        self.right_widget = QWidget()
-        self.right_layout = QVBoxLayout(self.right_widget)
+        self.center_widget = QWidget()
+        self.center_layout = QVBoxLayout(self.center_widget)
+
+        self.right_panel_widget = QWidget()
+        self.right_panel_layout = QVBoxLayout(self.right_panel_widget)
 
         self.main_splitter.addWidget(self.left_panel_widget)
-        self.main_splitter.addWidget(self.right_widget)
+        self.main_splitter.addWidget(self.center_widget)
+        self.main_splitter.addWidget(self.right_panel_widget)
         self.main_splitter.setStretchFactor(0, 1)
         self.main_splitter.setStretchFactor(1, 3)
+        self.main_splitter.setStretchFactor(2, 1)
+
+        # Right panel toggle button
+        self.toggle_right_panel_btn = QPushButton("\u25B6")
+        self.toggle_right_panel_btn.setFixedWidth(15)
+        self.toggle_right_panel_btn.clicked.connect(self.toggle_right_panel)
+        self.main_layout.addWidget(self.toggle_right_panel_btn)
 
         self.mem_layout = QVBoxLayout(self.memory_tab)
 
@@ -117,7 +135,7 @@ class MainWindow(QMainWindow):
         # Folder selection
         self.folder_select_button = QPushButton("Select Audio Folder")
         self.folder_select_button.clicked.connect(self.select_audio_folder)
-        self.right_layout.addWidget(self.folder_select_button)
+        self.center_layout.addWidget(self.folder_select_button)
 
         # Side file list with filter
         self.file_filter = QComboBox()
@@ -145,15 +163,15 @@ class MainWindow(QMainWindow):
         self.status_layout.addWidget(self.status_icon)
         self.status_layout.addWidget(self.status_label)
         self.status_layout.addStretch()
-        self.right_layout.addLayout(self.status_layout)
+        self.center_layout.addLayout(self.status_layout)
 
         self.metadata_label = QLabel("")
-        self.right_layout.addWidget(self.metadata_label)
+        self.center_layout.addWidget(self.metadata_label)
 
         self.load_progress = QProgressBar()
         self.load_progress.setRange(0, 100)
         self.load_progress.hide()
-        self.right_layout.addWidget(self.load_progress)
+        self.center_layout.addWidget(self.load_progress)
 
         # Spectrogram display and annotations table inside a splitter
         self.spectrogram_label = QLabel("Spectrogram will appear here.")
@@ -167,12 +185,8 @@ class MainWindow(QMainWindow):
         self.annotations_table.setHorizontalHeaderLabels(["Start", "End", "Category"])
         self.annotations_table.horizontalHeader().setStretchLastSection(True)
 
-        self.spectrogram_splitter = QSplitter(Qt.Orientation.Vertical)
-        self.spectrogram_splitter.addWidget(self.annotations_table)
-        self.spectrogram_splitter.addWidget(self.spectrogram_label)
-        self.spectrogram_splitter.setStretchFactor(0, 1)
-        self.spectrogram_splitter.setStretchFactor(1, 3)
-        self.right_layout.addWidget(self.spectrogram_splitter)
+        self.right_panel_layout.addWidget(self.annotations_table)
+        self.center_layout.addWidget(self.spectrogram_label)
 
         # Playback controls
         self.playback_layout = QHBoxLayout()
@@ -198,7 +212,7 @@ class MainWindow(QMainWindow):
         self.position_slider.setRange(0, 1000)
         self.position_slider.sliderMoved.connect(self.set_playback_position)
         self.playback_layout.addWidget(self.position_slider)
-        self.right_layout.addLayout(self.playback_layout)
+        self.center_layout.addLayout(self.playback_layout)
 
         # Labeling controls
         self.labeling_layout = QHBoxLayout()
@@ -230,7 +244,7 @@ class MainWindow(QMainWindow):
         )
         self.clear_labels_button.clicked.connect(self.clear_labels)
         self.labeling_layout.addWidget(self.clear_labels_button)
-        self.right_layout.addLayout(self.labeling_layout)
+        self.center_layout.addLayout(self.labeling_layout)
 
         # Navigation buttons
         self.nav_layout = QHBoxLayout()
@@ -247,7 +261,7 @@ class MainWindow(QMainWindow):
         self.next_button.clicked.connect(self.load_next_audio)
         self.next_button.setFixedHeight(36)
         self.nav_layout.addWidget(self.next_button)
-        self.right_layout.addLayout(self.nav_layout)
+        self.center_layout.addLayout(self.nav_layout)
 
         self.update_timer = QTimer(self)
         self.update_timer.setInterval(50)  # Update every 50ms
@@ -710,3 +724,15 @@ class MainWindow(QMainWindow):
         idx = item.data(Qt.ItemDataRole.UserRole)
         if idx is not None:
             self.load_audio(idx)
+
+    def toggle_left_panel(self):
+        """Show or hide the left file list panel."""
+        visible = self.left_panel_widget.isVisible()
+        self.left_panel_widget.setVisible(not visible)
+        self.toggle_left_panel_btn.setText("\u25B6" if visible else "\u25C0")
+
+    def toggle_right_panel(self):
+        """Show or hide the annotations panel."""
+        visible = self.right_panel_widget.isVisible()
+        self.right_panel_widget.setVisible(not visible)
+        self.toggle_right_panel_btn.setText("\u25C0" if visible else "\u25B6")
