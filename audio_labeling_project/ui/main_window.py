@@ -374,14 +374,14 @@ class MainWindow(QMainWindow):
         self.spectrogram_label.setPixmap(pixmap)
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Left and self.current_audio_data is not None:
+        if event.key() == Qt.Key.Key_Left and self.current_audio_data is not None:
             if self.is_playing:
                 self.stop_playback()
             step = int(self.current_samplerate)
             self.playback_position = max(0, self.playback_position - step)
             self.position_slider.setValue(self.playback_position)
             self.update_playback_line()
-        elif event.key() == Qt.Key_Right and self.current_audio_data is not None:
+        elif event.key() == Qt.Key.Key_Right and self.current_audio_data is not None:
             if self.is_playing:
                 self.stop_playback()
             step = int(self.current_samplerate)
@@ -390,10 +390,10 @@ class MainWindow(QMainWindow):
             )
             self.position_slider.setValue(self.playback_position)
             self.update_playback_line()
-        elif event.key() == Qt.Key_Up:
+        elif event.key() == Qt.Key.Key_Up:
             self.gain = min(2.0, self.gain + 0.1)
             self.status_label.setText(f"Gain: {self.gain:.1f}")
-        elif event.key() == Qt.Key_Down:
+        elif event.key() == Qt.Key.Key_Down:
             self.gain = max(0.0, self.gain - 0.1)
             self.status_label.setText(f"Gain: {self.gain:.1f}")
         else:
