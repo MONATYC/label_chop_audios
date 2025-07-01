@@ -2,6 +2,7 @@ CONFIG = {
     "AUDIO_EXTENSIONS": [".wav", ".mp3"],
     "SAMPLE_RATE": 44100,
     "LOG_FILE": "memlog/log.json",
+    "LABELS_FILE": "memlog/labels.json",
     "CATEGORIES": [
         "Hoot",
         "Climax",
