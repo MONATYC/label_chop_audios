@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
     QSplitter,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
-from PyQt6.QtGui import QPixmap, QImage, QIcon, QShortcut, QKeySequence
+from PyQt6.QtGui import QPixmap, QImage, QIcon, QShortcut, QKeySequence, QColor
 import os
 import numpy as np
 import sounddevice as sd
@@ -104,19 +104,30 @@ class MainWindow(QMainWindow):
 
         self.right_panel_widget = QWidget()
         self.right_panel_layout = QVBoxLayout(self.right_panel_widget)
+        # Ensure the annotations panel is wide enough for its columns
+        self.right_panel_widget.setMinimumWidth(300)
 
         self.main_splitter.addWidget(self.left_panel_widget)
         self.main_splitter.addWidget(self.center_widget)
         self.main_splitter.addWidget(self.right_panel_widget)
         self.main_splitter.setStretchFactor(0, 1)
         self.main_splitter.setStretchFactor(1, 3)
-        self.main_splitter.setStretchFactor(2, 1)
+        # Make the right panel triple width by default
+        self.main_splitter.setStretchFactor(2, 3)
+
+        # Start with both side panels collapsed
+        self.left_panel_widget.hide()
+        self.right_panel_widget.hide()
 
         # Right panel toggle button
         self.toggle_right_panel_btn = QPushButton("\u25B6")
         self.toggle_right_panel_btn.setFixedWidth(15)
         self.toggle_right_panel_btn.clicked.connect(self.toggle_right_panel)
         self.main_layout.addWidget(self.toggle_right_panel_btn)
+
+        # Update toggle button arrows for collapsed state
+        self.toggle_left_panel_btn.setText("\u25B6")
+        self.toggle_right_panel_btn.setText("\u25C0")
 
         self.mem_layout = QVBoxLayout(self.memory_tab)
 
@@ -717,6 +728,8 @@ class MainWindow(QMainWindow):
             if filter_opt == "Unlabeled" and labeled:
                 continue
             item = QListWidgetItem(os.path.basename(path))
+            if labeled:
+                item.setForeground(QColor("green"))
             item.setData(Qt.ItemDataRole.UserRole, idx)
             self.file_list.addItem(item)
 
