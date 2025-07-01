@@ -74,4 +74,5 @@ Las categorías configuradas actualmente son:
 - El sistema guarda un registro en `memlog/log.json` para no repetir el etiquetado de los mismos archivos.
 - El espectrograma permite seleccionar regiones con el ratón en modo etiquetado.
 - Los cortes se guardan automáticamente en subcarpetas según la categoría seleccionada.
+- La memoria también almacena la ruta de estos cortes en `memlog/labels.json` y se eliminan del disco al borrar su entrada desde la pestaña de memoria.
 

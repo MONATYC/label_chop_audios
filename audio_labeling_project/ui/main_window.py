@@ -353,7 +353,11 @@ class MainWindow(QMainWindow):
             ) = generate_spectrogram_pixmap(
                 self.current_audio_data, self.current_samplerate
             )
-            self.annotations = self.labels_data.get(audio_path, [])
+            data = self.labels_data.get(audio_path, {})
+            if isinstance(data, dict):
+                self.annotations = data.get("annotations", [])
+            else:
+                self.annotations = data
             self.refresh_annotations_table()
             self.update_spectrogram()
             self.stop_playback()
@@ -584,6 +588,7 @@ class MainWindow(QMainWindow):
         output_dir = r"D:\Dept. Investigación media\Noches Chimps\Proyectos\DATASET AUDIOS CHIMPS\labeled_cuts"
         create_directory_if_not_exists(output_dir)
 
+        cut_files = []
         for i, (start_time, end_time, category) in enumerate(self.annotations):
             category_dir = os.path.join(output_dir, category)
             create_directory_if_not_exists(category_dir)
@@ -598,10 +603,11 @@ class MainWindow(QMainWindow):
                 end_time,
                 output_path,
             )
+            cut_files.append(output_path)
             self.status_label.setText(f"Saved cut to: {output_path}")
 
         audio_path = self.audio_files[self.current_audio_index]
-        save_labels_for_audio(audio_path, self.annotations, self.labels_data)
+        save_labels_for_audio(audio_path, self.annotations, self.labels_data, cut_files)
         log_labeled_audio(audio_path, self.labeled_audios)
         self.refresh_memory_table()
         self.refresh_file_list()
