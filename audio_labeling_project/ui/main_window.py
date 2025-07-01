@@ -14,6 +14,9 @@ from PyQt6.QtWidgets import (
     QTabWidget,
     QTableWidget,
     QTableWidgetItem,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
 from PyQt6.QtGui import QPixmap, QImage, QIcon, QShortcut, QKeySequence
@@ -33,6 +36,8 @@ from utils.logger import (
     load_labeled_audios_log,
     log_labeled_audio,
     remove_labeled_audio,
+    load_labels_data,
+    save_labels_for_audio,
 )
 import json
 
@@ -60,7 +65,9 @@ class MainWindow(QMainWindow):
 
         self.init_ui()
         self.labeled_audios = load_labeled_audios_log()
+        self.labels_data = load_labels_data()
         self.refresh_memory_table()
+        self.refresh_file_list()
 
     def init_ui(self):
         self.central_widget = QWidget()
@@ -76,10 +83,19 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.labeling_tab, "Labeling")
         self.tabs.addTab(self.memory_tab, "Memory Manager")
 
-        self.main_layout = QVBoxLayout(self.labeling_tab)
+        self.main_layout = QHBoxLayout(self.labeling_tab)
+        self.left_panel_layout = QVBoxLayout()
+        self.right_layout = QVBoxLayout()
+        self.main_layout.addLayout(self.left_panel_layout)
+        self.main_layout.addLayout(self.right_layout)
         self.mem_layout = QVBoxLayout(self.memory_tab)
 
         # Memory manager table
+        self.memory_search = QLineEdit()
+        self.memory_search.setPlaceholderText("Search...")
+        self.memory_search.textChanged.connect(self.refresh_memory_table)
+        self.mem_layout.addWidget(self.memory_search)
+
         self.memory_table = QTableWidget()
         self.memory_table.setColumnCount(2)
         self.memory_table.setHorizontalHeaderLabels(["File", ""])
@@ -89,7 +105,17 @@ class MainWindow(QMainWindow):
         # Folder selection
         self.folder_select_button = QPushButton("Select Audio Folder")
         self.folder_select_button.clicked.connect(self.select_audio_folder)
-        self.main_layout.addWidget(self.folder_select_button)
+        self.right_layout.addWidget(self.folder_select_button)
+
+        # Side file list with filter
+        self.file_filter = QComboBox()
+        self.file_filter.addItems(["All", "Unlabeled", "Labeled"])
+        self.file_filter.currentIndexChanged.connect(self.refresh_file_list)
+        self.left_panel_layout.addWidget(self.file_filter)
+
+        self.file_list = QListWidget()
+        self.file_list.itemClicked.connect(self.file_item_clicked)
+        self.left_panel_layout.addWidget(self.file_list)
 
         # Top status bar showing current file
         self.status_layout = QHBoxLayout()
@@ -107,15 +133,15 @@ class MainWindow(QMainWindow):
         self.status_layout.addWidget(self.status_icon)
         self.status_layout.addWidget(self.status_label)
         self.status_layout.addStretch()
-        self.main_layout.addLayout(self.status_layout)
+        self.right_layout.addLayout(self.status_layout)
 
         self.metadata_label = QLabel("")
-        self.main_layout.addWidget(self.metadata_label)
+        self.right_layout.addWidget(self.metadata_label)
 
         self.load_progress = QProgressBar()
         self.load_progress.setRange(0, 100)
         self.load_progress.hide()
-        self.main_layout.addWidget(self.load_progress)
+        self.right_layout.addWidget(self.load_progress)
 
         # Spectrogram display
         self.spectrogram_label = QLabel("Spectrogram will appear here.")
@@ -125,7 +151,14 @@ class MainWindow(QMainWindow):
         )  # Enable mouse tracking for selection
         self.spectrogram_label.mousePressEvent = self.spectrogram_mouse_press
         self.spectrogram_label.mouseReleaseEvent = self.spectrogram_mouse_release
-        self.main_layout.addWidget(self.spectrogram_label)
+        self.right_layout.addWidget(self.spectrogram_label)
+
+        # Table showing annotations
+        self.annotations_table = QTableWidget()
+        self.annotations_table.setColumnCount(3)
+        self.annotations_table.setHorizontalHeaderLabels(["Start", "End", "Category"])
+        self.annotations_table.horizontalHeader().setStretchLastSection(True)
+        self.right_layout.addWidget(self.annotations_table)
 
         # Playback controls
         self.playback_layout = QHBoxLayout()
@@ -151,7 +184,7 @@ class MainWindow(QMainWindow):
         self.position_slider.setRange(0, 1000)
         self.position_slider.sliderMoved.connect(self.set_playback_position)
         self.playback_layout.addWidget(self.position_slider)
-        self.main_layout.addLayout(self.playback_layout)
+        self.right_layout.addLayout(self.playback_layout)
 
         # Labeling controls
         self.labeling_layout = QHBoxLayout()
@@ -183,7 +216,7 @@ class MainWindow(QMainWindow):
         )
         self.clear_labels_button.clicked.connect(self.clear_labels)
         self.labeling_layout.addWidget(self.clear_labels_button)
-        self.main_layout.addLayout(self.labeling_layout)
+        self.right_layout.addLayout(self.labeling_layout)
 
         # Navigation buttons
         self.nav_layout = QHBoxLayout()
@@ -200,7 +233,7 @@ class MainWindow(QMainWindow):
         self.next_button.clicked.connect(self.load_next_audio)
         self.next_button.setFixedHeight(36)
         self.nav_layout.addWidget(self.next_button)
-        self.main_layout.addLayout(self.nav_layout)
+        self.right_layout.addLayout(self.nav_layout)
 
         self.update_timer = QTimer(self)
         self.update_timer.setInterval(50)  # Update every 50ms
@@ -227,6 +260,7 @@ class MainWindow(QMainWindow):
             self.audio_files = get_audio_files_in_folder(
                 folder_path, CONFIG["AUDIO_EXTENSIONS"]
             )
+            self.refresh_file_list()
 
             if not self.audio_files:
                 self.status_label.setText(
@@ -277,6 +311,8 @@ class MainWindow(QMainWindow):
             ) = generate_spectrogram_pixmap(
                 self.current_audio_data, self.current_samplerate
             )
+            self.annotations = self.labels_data.get(audio_path, [])
+            self.refresh_annotations_table()
             self.update_spectrogram()
             self.stop_playback()
             self.status_label.setText(f"Loaded: {os.path.basename(audio_path)}")
@@ -462,6 +498,7 @@ class MainWindow(QMainWindow):
             self.annotations.append((start, end, category))
             self.status_label.setText(f"Segment {start:.2f}s to {end:.2f}s added.")
             self.update_spectrogram()
+            self.refresh_annotations_table()
         self.temp_start_time = None
 
     def save_labels_and_cut(self):
@@ -494,11 +531,13 @@ class MainWindow(QMainWindow):
             )
             self.status_label.setText(f"Saved cut to: {output_path}")
 
-        log_labeled_audio(
-            self.audio_files[self.current_audio_index], self.labeled_audios
-        )
+        audio_path = self.audio_files[self.current_audio_index]
+        save_labels_for_audio(audio_path, self.annotations, self.labels_data)
+        log_labeled_audio(audio_path, self.labeled_audios)
         self.refresh_memory_table()
+        self.refresh_file_list()
         self.annotations = []  # Clear annotations after saving
+        self.refresh_annotations_table()
         self.status_label.setText(
             f"Audio '{current_audio_filename}' labeled and cuts saved."
         )
@@ -508,6 +547,7 @@ class MainWindow(QMainWindow):
         self.annotations = []
         self.temp_start_time = None
         self.update_spectrogram()
+        self.refresh_annotations_table()
         self.status_label.setText("Annotations cleared.")
 
     def check_if_labeled(self, audio_path):
@@ -573,9 +613,19 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(2000, msg.accept)  # Cierra el popup tras 2 segundos
         msg.exec()  # Modal, permite cerrar con la X
 
+    def refresh_annotations_table(self):
+        self.annotations_table.setRowCount(0)
+        for row, (start, end, cat) in enumerate(self.annotations):
+            self.annotations_table.insertRow(row)
+            self.annotations_table.setItem(row, 0, QTableWidgetItem(f"{start:.2f}"))
+            self.annotations_table.setItem(row, 1, QTableWidgetItem(f"{end:.2f}"))
+            self.annotations_table.setItem(row, 2, QTableWidgetItem(cat))
+
     def refresh_memory_table(self):
         self.memory_table.setRowCount(0)
-        for row, path in enumerate(sorted(self.labeled_audios.keys())):
+        search = self.memory_search.text().lower() if hasattr(self, "memory_search") else ""
+        paths = [p for p in sorted(self.labeled_audios.keys()) if search in os.path.basename(p).lower()]
+        for row, path in enumerate(paths):
             self.memory_table.insertRow(row)
             item = QTableWidgetItem(os.path.basename(path))
             item.setToolTip(path)
@@ -586,14 +636,35 @@ class MainWindow(QMainWindow):
 
     def delete_memory_entry(self, path):
         if path in self.labeled_audios:
-            if remove_labeled_audio(path, self.labeled_audios):
+            if remove_labeled_audio(path, self.labeled_audios, self.labels_data):
                 self.status_label.setText(
                     f"Memory entry removed for {os.path.basename(path)}"
                 )
                 self.refresh_memory_table()
+                self.refresh_file_list()
 
     def closeEvent(self, event):
         if self.playback_stream:
             self.playback_stream.stop()
             self.playback_stream.close()
         event.accept()
+
+    def refresh_file_list(self):
+        if not hasattr(self, "file_list"):
+            return
+        self.file_list.clear()
+        filter_opt = self.file_filter.currentText() if hasattr(self, "file_filter") else "All"
+        for idx, path in enumerate(self.audio_files):
+            labeled = path in self.labeled_audios
+            if filter_opt == "Labeled" and not labeled:
+                continue
+            if filter_opt == "Unlabeled" and labeled:
+                continue
+            item = QListWidgetItem(os.path.basename(path))
+            item.setData(Qt.ItemDataRole.UserRole, idx)
+            self.file_list.addItem(item)
+
+    def file_item_clicked(self, item):
+        idx = item.data(Qt.ItemDataRole.UserRole)
+        if idx is not None:
+            self.load_audio(idx)
