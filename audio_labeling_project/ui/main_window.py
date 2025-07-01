@@ -88,7 +88,7 @@ class MainWindow(QMainWindow):
         self.main_layout = QHBoxLayout(self.labeling_tab)
 
         # Left panel toggle button
-        self.toggle_left_panel_btn = QPushButton("\u25C0")
+        self.toggle_left_panel_btn = QPushButton("\u25c0")
         self.toggle_left_panel_btn.setFixedWidth(15)
         self.toggle_left_panel_btn.clicked.connect(self.toggle_left_panel)
         self.main_layout.addWidget(self.toggle_left_panel_btn)
@@ -120,14 +120,14 @@ class MainWindow(QMainWindow):
         self.right_panel_widget.hide()
 
         # Right panel toggle button
-        self.toggle_right_panel_btn = QPushButton("\u25B6")
+        self.toggle_right_panel_btn = QPushButton("\u25b6")
         self.toggle_right_panel_btn.setFixedWidth(15)
         self.toggle_right_panel_btn.clicked.connect(self.toggle_right_panel)
         self.main_layout.addWidget(self.toggle_right_panel_btn)
 
         # Update toggle button arrows for collapsed state
-        self.toggle_left_panel_btn.setText("\u25B6")
-        self.toggle_right_panel_btn.setText("\u25C0")
+        self.toggle_left_panel_btn.setText("\u25b6")
+        self.toggle_right_panel_btn.setText("\u25c0")
 
         self.mem_layout = QVBoxLayout(self.memory_tab)
 
@@ -294,7 +294,10 @@ class MainWindow(QMainWindow):
             QShortcut(QKeySequence(sc), self, activated=self.save_labels_and_cut)
 
     def select_audio_folder(self):
-        folder_path = QFileDialog.getExistingDirectory(self, "Select Audio Folder")
+        default_dir = r"D:\Dept. Investigación media\Noches Chimps\Proyectos\DATASET AUDIOS CHIMPS"
+        folder_path = QFileDialog.getExistingDirectory(
+            self, "Select Audio Folder", default_dir
+        )
         if folder_path:
             self.audio_files = get_audio_files_in_folder(
                 folder_path, CONFIG["AUDIO_EXTENSIONS"]
@@ -495,13 +498,13 @@ class MainWindow(QMainWindow):
             # Pad with zeros if we're at the end of the audio
             frames_to_copy = len(self.current_audio_data) - self.playback_position
             outdata[:frames_to_copy, 0] = (
-                self.current_audio_data[self.playback_position:chunk_end] * self.gain
+                self.current_audio_data[self.playback_position : chunk_end] * self.gain
             )
             outdata[frames_to_copy:, 0] = 0.0
             raise sd.CallbackStop  # Stop playback
         else:
             outdata[:, 0] = (
-                self.current_audio_data[self.playback_position:chunk_end] * self.gain
+                self.current_audio_data[self.playback_position : chunk_end] * self.gain
             )
 
         self.playback_position += frames
@@ -577,9 +580,8 @@ class MainWindow(QMainWindow):
             self.audio_files[self.current_audio_index]
         )
         base_name, _ = os.path.splitext(current_audio_filename)
-        output_dir = os.path.join(
-            os.path.dirname(self.audio_files[self.current_audio_index]), "labeled_cuts"
-        )
+        # Carpeta de salida fija
+        output_dir = r"D:\Dept. Investigación media\Noches Chimps\Proyectos\DATASET AUDIOS CHIMPS\labeled_cuts"
         create_directory_if_not_exists(output_dir)
 
         for i, (start_time, end_time, category) in enumerate(self.annotations):
@@ -690,8 +692,14 @@ class MainWindow(QMainWindow):
 
     def refresh_memory_table(self):
         self.memory_table.setRowCount(0)
-        search = self.memory_search.text().lower() if hasattr(self, "memory_search") else ""
-        paths = [p for p in sorted(self.labeled_audios.keys()) if search in os.path.basename(p).lower()]
+        search = (
+            self.memory_search.text().lower() if hasattr(self, "memory_search") else ""
+        )
+        paths = [
+            p
+            for p in sorted(self.labeled_audios.keys())
+            if search in os.path.basename(p).lower()
+        ]
         for row, path in enumerate(paths):
             self.memory_table.insertRow(row)
             item = QTableWidgetItem(os.path.basename(path))
@@ -720,7 +728,9 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "file_list"):
             return
         self.file_list.clear()
-        filter_opt = self.file_filter.currentText() if hasattr(self, "file_filter") else "All"
+        filter_opt = (
+            self.file_filter.currentText() if hasattr(self, "file_filter") else "All"
+        )
         for idx, path in enumerate(self.audio_files):
             labeled = path in self.labeled_audios
             if filter_opt == "Labeled" and not labeled:
@@ -742,10 +752,10 @@ class MainWindow(QMainWindow):
         """Show or hide the left file list panel."""
         visible = self.left_panel_widget.isVisible()
         self.left_panel_widget.setVisible(not visible)
-        self.toggle_left_panel_btn.setText("\u25B6" if visible else "\u25C0")
+        self.toggle_left_panel_btn.setText("\u25b6" if visible else "\u25c0")
 
     def toggle_right_panel(self):
         """Show or hide the annotations panel."""
         visible = self.right_panel_widget.isVisible()
         self.right_panel_widget.setVisible(not visible)
-        self.toggle_right_panel_btn.setText("\u25C0" if visible else "\u25B6")
+        self.toggle_right_panel_btn.setText("\u25c0" if visible else "\u25b6")
