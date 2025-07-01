@@ -85,7 +85,18 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.labeling_tab, "Labeling")
         self.tabs.addTab(self.memory_tab, "Memory Manager")
 
-        self.main_layout = QHBoxLayout(self.labeling_tab)
+        self.main_layout = QVBoxLayout(self.labeling_tab)
+
+        self.toggle_layout = QHBoxLayout()
+        self.toggle_left_button = QPushButton("Toggle Left Panel")
+        self.toggle_left_button.clicked.connect(self.toggle_left_panel)
+        self.toggle_layout.addWidget(self.toggle_left_button)
+        self.toggle_right_button = QPushButton("Toggle Right Panel")
+        self.toggle_right_button.clicked.connect(self.toggle_right_panel)
+        self.toggle_layout.addWidget(self.toggle_right_button)
+        self.toggle_layout.addStretch()
+        self.main_layout.addLayout(self.toggle_layout)
+
         self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
         self.main_layout.addWidget(self.main_splitter)
 
@@ -167,7 +178,7 @@ class MainWindow(QMainWindow):
         self.annotations_table.setHorizontalHeaderLabels(["Start", "End", "Category"])
         self.annotations_table.horizontalHeader().setStretchLastSection(True)
 
-        self.spectrogram_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.spectrogram_splitter = QSplitter(Qt.Orientation.Horizontal)
         self.spectrogram_splitter.addWidget(self.annotations_table)
         self.spectrogram_splitter.addWidget(self.spectrogram_label)
         self.spectrogram_splitter.setStretchFactor(0, 1)
@@ -267,6 +278,49 @@ class MainWindow(QMainWindow):
             QShortcut(QKeySequence(sc), self, activated=self.clear_labels)
         if sc := self.shortcuts.get("save_labels"):
             QShortcut(QKeySequence(sc), self, activated=self.save_labels_and_cut)
+
+        QShortcut(QKeySequence(Qt.Key.Key_Left), self, activated=self.seek_backward)
+        QShortcut(QKeySequence(Qt.Key.Key_Right), self, activated=self.seek_forward)
+        QShortcut(QKeySequence(Qt.Key.Key_Up), self, activated=self.increase_gain)
+        QShortcut(QKeySequence(Qt.Key.Key_Down), self, activated=self.decrease_gain)
+
+    def toggle_left_panel(self):
+        visible = self.left_panel_widget.isVisible()
+        self.left_panel_widget.setVisible(not visible)
+
+    def toggle_right_panel(self):
+        visible = self.right_widget.isVisible()
+        self.right_widget.setVisible(not visible)
+
+    def seek_backward(self):
+        if self.current_audio_data is None:
+            return
+        if self.is_playing:
+            self.stop_playback()
+        step = int(self.current_samplerate * 0.5)
+        self.playback_position = max(0, self.playback_position - step)
+        self.position_slider.setValue(self.playback_position)
+        self.update_playback_line()
+
+    def seek_forward(self):
+        if self.current_audio_data is None:
+            return
+        if self.is_playing:
+            self.stop_playback()
+        step = int(self.current_samplerate * 0.5)
+        self.playback_position = min(
+            len(self.current_audio_data) - 1, self.playback_position + step
+        )
+        self.position_slider.setValue(self.playback_position)
+        self.update_playback_line()
+
+    def increase_gain(self):
+        self.gain = min(2.0, self.gain + 0.1)
+        self.status_label.setText(f"Gain: {self.gain:.1f}")
+
+    def decrease_gain(self):
+        self.gain = max(0.0, self.gain - 0.1)
+        self.status_label.setText(f"Gain: {self.gain:.1f}")
 
     def select_audio_folder(self):
         folder_path = QFileDialog.getExistingDirectory(self, "Select Audio Folder")
@@ -374,28 +428,14 @@ class MainWindow(QMainWindow):
         self.spectrogram_label.setPixmap(pixmap)
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key.Key_Left and self.current_audio_data is not None:
-            if self.is_playing:
-                self.stop_playback()
-            step = int(self.current_samplerate)
-            self.playback_position = max(0, self.playback_position - step)
-            self.position_slider.setValue(self.playback_position)
-            self.update_playback_line()
-        elif event.key() == Qt.Key.Key_Right and self.current_audio_data is not None:
-            if self.is_playing:
-                self.stop_playback()
-            step = int(self.current_samplerate)
-            self.playback_position = min(
-                len(self.current_audio_data) - 1, self.playback_position + step
-            )
-            self.position_slider.setValue(self.playback_position)
-            self.update_playback_line()
+        if event.key() == Qt.Key.Key_Left:
+            self.seek_backward()
+        elif event.key() == Qt.Key.Key_Right:
+            self.seek_forward()
         elif event.key() == Qt.Key.Key_Up:
-            self.gain = min(2.0, self.gain + 0.1)
-            self.status_label.setText(f"Gain: {self.gain:.1f}")
+            self.increase_gain()
         elif event.key() == Qt.Key.Key_Down:
-            self.gain = max(0.0, self.gain - 0.1)
-            self.status_label.setText(f"Gain: {self.gain:.1f}")
+            self.decrease_gain()
         else:
             super().keyPressEvent(event)
 
