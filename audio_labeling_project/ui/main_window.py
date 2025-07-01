@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QSplitter,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
 from PyQt6.QtGui import QPixmap, QImage, QIcon, QShortcut, QKeySequence
@@ -56,6 +57,7 @@ class MainWindow(QMainWindow):
         self.playback_stream_id = 0
         self.playback_position = 0
         self.is_playing = False
+        self.gain = 1.0
         self.annotations = []  # Stores (start_time, end_time, category)
         self.base_spectrogram = None
         self.spectrogram_bounds = None
@@ -84,10 +86,20 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.memory_tab, "Memory Manager")
 
         self.main_layout = QHBoxLayout(self.labeling_tab)
-        self.left_panel_layout = QVBoxLayout()
-        self.right_layout = QVBoxLayout()
-        self.main_layout.addLayout(self.left_panel_layout)
-        self.main_layout.addLayout(self.right_layout)
+        self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.main_layout.addWidget(self.main_splitter)
+
+        self.left_panel_widget = QWidget()
+        self.left_panel_layout = QVBoxLayout(self.left_panel_widget)
+
+        self.right_widget = QWidget()
+        self.right_layout = QVBoxLayout(self.right_widget)
+
+        self.main_splitter.addWidget(self.left_panel_widget)
+        self.main_splitter.addWidget(self.right_widget)
+        self.main_splitter.setStretchFactor(0, 1)
+        self.main_splitter.setStretchFactor(1, 3)
+
         self.mem_layout = QVBoxLayout(self.memory_tab)
 
         # Memory manager table
@@ -143,22 +155,24 @@ class MainWindow(QMainWindow):
         self.load_progress.hide()
         self.right_layout.addWidget(self.load_progress)
 
-        # Spectrogram display
+        # Spectrogram display and annotations table inside a splitter
         self.spectrogram_label = QLabel("Spectrogram will appear here.")
         self.spectrogram_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.spectrogram_label.setMouseTracking(
-            True
-        )  # Enable mouse tracking for selection
+        self.spectrogram_label.setMouseTracking(True)  # Enable mouse tracking
         self.spectrogram_label.mousePressEvent = self.spectrogram_mouse_press
         self.spectrogram_label.mouseReleaseEvent = self.spectrogram_mouse_release
-        self.right_layout.addWidget(self.spectrogram_label)
 
-        # Table showing annotations
         self.annotations_table = QTableWidget()
         self.annotations_table.setColumnCount(3)
         self.annotations_table.setHorizontalHeaderLabels(["Start", "End", "Category"])
         self.annotations_table.horizontalHeader().setStretchLastSection(True)
-        self.right_layout.addWidget(self.annotations_table)
+
+        self.spectrogram_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.spectrogram_splitter.addWidget(self.annotations_table)
+        self.spectrogram_splitter.addWidget(self.spectrogram_label)
+        self.spectrogram_splitter.setStretchFactor(0, 1)
+        self.spectrogram_splitter.setStretchFactor(1, 3)
+        self.right_layout.addWidget(self.spectrogram_splitter)
 
         # Playback controls
         self.playback_layout = QHBoxLayout()
@@ -359,6 +373,32 @@ class MainWindow(QMainWindow):
         )
         self.spectrogram_label.setPixmap(pixmap)
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Left and self.current_audio_data is not None:
+            if self.is_playing:
+                self.stop_playback()
+            step = int(self.current_samplerate)
+            self.playback_position = max(0, self.playback_position - step)
+            self.position_slider.setValue(self.playback_position)
+            self.update_playback_line()
+        elif event.key() == Qt.Key_Right and self.current_audio_data is not None:
+            if self.is_playing:
+                self.stop_playback()
+            step = int(self.current_samplerate)
+            self.playback_position = min(
+                len(self.current_audio_data) - 1, self.playback_position + step
+            )
+            self.position_slider.setValue(self.playback_position)
+            self.update_playback_line()
+        elif event.key() == Qt.Key_Up:
+            self.gain = min(2.0, self.gain + 0.1)
+            self.status_label.setText(f"Gain: {self.gain:.1f}")
+        elif event.key() == Qt.Key_Down:
+            self.gain = max(0.0, self.gain - 0.1)
+            self.status_label.setText(f"Gain: {self.gain:.1f}")
+        else:
+            super().keyPressEvent(event)
+
     def toggle_playback(self):
         if self.current_audio_data is None:
             return
@@ -429,13 +469,15 @@ class MainWindow(QMainWindow):
         if chunk_end > len(self.current_audio_data):
             # Pad with zeros if we're at the end of the audio
             frames_to_copy = len(self.current_audio_data) - self.playback_position
-            outdata[:frames_to_copy, 0] = self.current_audio_data[
-                self.playback_position : chunk_end
-            ]
+            outdata[:frames_to_copy, 0] = (
+                self.current_audio_data[self.playback_position:chunk_end] * self.gain
+            )
             outdata[frames_to_copy:, 0] = 0.0
             raise sd.CallbackStop  # Stop playback
         else:
-            outdata[:, 0] = self.current_audio_data[self.playback_position : chunk_end]
+            outdata[:, 0] = (
+                self.current_audio_data[self.playback_position:chunk_end] * self.gain
+            )
 
         self.playback_position += frames
         self.position_slider.setValue(self.playback_position)
