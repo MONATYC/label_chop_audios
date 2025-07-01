@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QApplication,
     QMessageBox,
-    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
     QLineEdit,
@@ -75,55 +74,52 @@ class MainWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
-        self.global_layout = QVBoxLayout(self.central_widget)
-
-        self.tabs = QTabWidget()
-        self.global_layout.addWidget(self.tabs)
-
-        self.labeling_tab = QWidget()
-        self.memory_tab = QWidget()
-        self.tabs.addTab(self.labeling_tab, "Labeling")
-        self.tabs.addTab(self.memory_tab, "Memory Manager")
-
-        self.main_layout = QVBoxLayout(self.labeling_tab)
-
-        self.toggle_layout = QHBoxLayout()
-        self.toggle_left_button = QPushButton("Toggle Left Panel")
-        self.toggle_left_button.clicked.connect(self.toggle_left_panel)
-        self.toggle_layout.addWidget(self.toggle_left_button)
-        self.toggle_right_button = QPushButton("Toggle Right Panel")
-        self.toggle_right_button.clicked.connect(self.toggle_right_panel)
-        self.toggle_layout.addWidget(self.toggle_right_button)
-        self.toggle_layout.addStretch()
-        self.main_layout.addLayout(self.toggle_layout)
+        self.main_layout = QVBoxLayout(self.central_widget)
 
         self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
         self.main_layout.addWidget(self.main_splitter)
 
-        self.left_panel_widget = QWidget()
-        self.left_panel_layout = QVBoxLayout(self.left_panel_widget)
+        # Left panel: history table
+        self.history_panel = QWidget()
+        self.history_layout = QVBoxLayout(self.history_panel)
+        self.history_toggle_button = QPushButton("<")
+        self.history_toggle_button.setFixedSize(20, 20)
+        self.history_toggle_button.clicked.connect(self.toggle_history_panel)
+        self.history_layout.addWidget(
+            self.history_toggle_button, alignment=Qt.AlignmentFlag.AlignRight
+        )
 
-        self.right_widget = QWidget()
-        self.right_layout = QVBoxLayout(self.right_widget)
-
-        self.main_splitter.addWidget(self.left_panel_widget)
-        self.main_splitter.addWidget(self.right_widget)
-        self.main_splitter.setStretchFactor(0, 1)
-        self.main_splitter.setStretchFactor(1, 3)
-
-        self.mem_layout = QVBoxLayout(self.memory_tab)
-
-        # Memory manager table
         self.memory_search = QLineEdit()
         self.memory_search.setPlaceholderText("Search...")
         self.memory_search.textChanged.connect(self.refresh_memory_table)
-        self.mem_layout.addWidget(self.memory_search)
+        self.history_layout.addWidget(self.memory_search)
 
         self.memory_table = QTableWidget()
         self.memory_table.setColumnCount(2)
         self.memory_table.setHorizontalHeaderLabels(["File", ""])
         self.memory_table.horizontalHeader().setStretchLastSection(True)
-        self.mem_layout.addWidget(self.memory_table)
+        self.history_layout.addWidget(self.memory_table)
+
+        # Center panel: main controls
+        self.right_widget = QWidget()
+        self.right_layout = QVBoxLayout(self.right_widget)
+
+        # Right panel: file list
+        self.left_panel_widget = QWidget()
+        self.left_panel_layout = QVBoxLayout(self.left_panel_widget)
+        self.file_toggle_button = QPushButton(">")
+        self.file_toggle_button.setFixedSize(20, 20)
+        self.file_toggle_button.clicked.connect(self.toggle_file_panel)
+        self.left_panel_layout.addWidget(
+            self.file_toggle_button, alignment=Qt.AlignmentFlag.AlignLeft
+        )
+
+        self.main_splitter.addWidget(self.history_panel)
+        self.main_splitter.addWidget(self.right_widget)
+        self.main_splitter.addWidget(self.left_panel_widget)
+        self.main_splitter.setStretchFactor(0, 1)
+        self.main_splitter.setStretchFactor(1, 3)
+        self.main_splitter.setStretchFactor(2, 1)
 
         # Folder selection
         self.folder_select_button = QPushButton("Select Audio Folder")
@@ -284,13 +280,13 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence(Qt.Key.Key_Up), self, activated=self.increase_gain)
         QShortcut(QKeySequence(Qt.Key.Key_Down), self, activated=self.decrease_gain)
 
-    def toggle_left_panel(self):
+    def toggle_file_panel(self):
         visible = self.left_panel_widget.isVisible()
         self.left_panel_widget.setVisible(not visible)
 
-    def toggle_right_panel(self):
-        visible = self.right_widget.isVisible()
-        self.right_widget.setVisible(not visible)
+    def toggle_history_panel(self):
+        visible = self.history_panel.isVisible()
+        self.history_panel.setVisible(not visible)
 
     def seek_backward(self):
         if self.current_audio_data is None:
