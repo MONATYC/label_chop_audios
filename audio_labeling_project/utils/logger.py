@@ -13,9 +13,17 @@ def load_labels_data():
     return {}
 
 
-def save_labels_for_audio(audio_path, annotations, labels_data):
-    """Save annotation list for an audio file."""
-    labels_data[audio_path] = annotations
+def save_labels_for_audio(audio_path, annotations, labels_data, cut_files=None):
+    """Save annotation list for an audio file and track generated cuts."""
+    entry = labels_data.get(audio_path, {})
+    if isinstance(entry, list):
+        entry = {"annotations": entry}
+    if not isinstance(entry, dict):
+        entry = {}
+    entry["annotations"] = annotations
+    if cut_files is not None:
+        entry["cuts"] = cut_files
+    labels_data[audio_path] = entry
     path = CONFIG.get("LABELS_FILE", "memlog/labels.json")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
@@ -23,15 +31,25 @@ def save_labels_for_audio(audio_path, annotations, labels_data):
 
 
 def remove_labels_for_audio(audio_path, labels_data):
-    """Remove saved annotations for an audio file."""
-    if audio_path in labels_data:
-        del labels_data[audio_path]
-        path = CONFIG.get("LABELS_FILE", "memlog/labels.json")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w") as f:
-            json.dump(labels_data, f, indent=4)
-        return True
-    return False
+    """Remove saved annotations and associated cuts for an audio file."""
+    entry = labels_data.get(audio_path)
+    if entry is None:
+        return False
+
+    if isinstance(entry, dict):
+        for cut_path in entry.get("cuts", []):
+            try:
+                if os.path.exists(cut_path):
+                    os.remove(cut_path)
+            except OSError:
+                pass
+
+    del labels_data[audio_path]
+    path = CONFIG.get("LABELS_FILE", "memlog/labels.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(labels_data, f, indent=4)
+    return True
 
 
 def load_labeled_audios_log():
